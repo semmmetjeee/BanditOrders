@@ -1,0 +1,13 @@
+name: BanditOrders
+version: 1.0.0
+main: me.semmmetje.banditorders.BanditOrders
+api-version: '1.21'
+author: semmmetjeee
+softdepend: [Vault, MarsCore]
+commands:
+  orders:
+    description: Browse and create market orders
+    aliases: [order]
+permissions:
+  banditorders.use:
+    default: true
