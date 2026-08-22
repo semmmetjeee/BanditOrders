@@ -1,0 +1,12 @@
+list-title: "&#d9a441&lMARKET ORDERS"
+delivery-title: "&#d9a441&lDELIVER ORDER"
+border: BLACK_STAINED_GLASS_PANE
+order-name: "&#d9a441%item%"
+order-lore:
+  - "&7Buyer: &#d9a441%buyer%"
+  - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
+  - "&7Price each: &#d9a441%price%"
+  - ""
+  - "&eClick to deliver items."
+input-slots: [10, 11, 12, 13, 14, 15, 16]
+info-slot: 4
