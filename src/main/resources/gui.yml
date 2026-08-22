@@ -1,12 +1,44 @@
-list-title: "&#d9a441&lMARKET ORDERS"
-delivery-title: "&#d9a441&lDELIVER ORDER"
-border: BLACK_STAINED_GLASS_PANE
-order-name: "&#d9a441%item%"
-order-lore:
-  - "&7Buyer: &#d9a441%buyer%"
-  - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
-  - "&7Price each: &#d9a441%price%"
-  - ""
-  - "&eClick to deliver items."
-input-slots: [10, 11, 12, 13, 14, 15, 16]
-info-slot: 4
+# Every visual part of BanditOrders is editable here. Inventory sizes must be 9-54 and divisible by 9.
+border:
+  material: BLACK_STAINED_GLASS_PANE
+  name: " "
+
+list:
+  size: 54
+  title: "&#d9a441&lMARKET ORDERS"
+  # Place order entries wherever you want. Add/remove slots for your layout.
+  content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
+  order-name: "&#d9a441%item%"
+  order-lore:
+    - "&7Buyer: &#d9a441%buyer%"
+    - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
+    - "&7Price each: &#d9a441%price%"
+    - ""
+    - "&eClick to deliver items."
+  info:
+    slot: 4
+    material: BOOK
+    name: "&#d9a441&lORDER MARKET"
+    lore:
+      - "&7Deliver items to earn money."
+      - "&7Your own orders open their storage."
+
+delivery:
+  size: 27
+  title: "&#d9a441&lDELIVER ORDER"
+  info-slot: 4
+  input-slots: [10, 11, 12, 13, 14, 15, 16]
+  info:
+    material: CHEST
+    name: "&#d9a441&l%item%"
+    lore:
+      - "&7Place matching items in the slots."
+      - "&7They are paid when you close the menu."
+      - "&7Remaining: &#d9a441%remaining%"
+
+storage:
+  size: 54
+  title: "&#d9a441&lORDER STORAGE"
+  # The buyer can take the delivered items from this menu.
+  info:
+    enabled: false
