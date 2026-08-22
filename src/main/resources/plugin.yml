@@ -11,3 +11,5 @@ commands:
 permissions:
   banditorders.use:
     default: true
+  banditorders.admin:
+    default: op
