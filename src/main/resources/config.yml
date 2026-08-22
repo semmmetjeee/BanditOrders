@@ -1,0 +1,10 @@
+max-orders-per-player: 10
+messages:
+  prefix: "&#d9a441&lORDERS &8» &f"
+  no-economy: "%prefix%&cVault and an economy provider are required."
+  invalid: "%prefix%&cUsage: /orders create <item|hand> <amount> <price per item>"
+  created: "%prefix%&aCreated an order for &#d9a441%amount%x %item%&a."
+  deleted: "%prefix%&aYour order was cancelled and &#d9a441%money% &awas refunded."
+  full: "%prefix%&cYou reached the maximum number of active orders."
+  no-money: "%prefix%&cYou do not have enough money for this order."
+  paid: "%prefix%&aDelivered &#d9a441%amount%x %item% &aand earned &#d9a441%money%&a."
