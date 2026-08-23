@@ -256,7 +256,7 @@ storage:
       material: OAK_DOOR
       name: "&#d9a441&lBACK TO ORDERS"
       lore:
-        - "&7Return to the orders menu."
+        - "&7Return to your orders."
         - ""
         - "&#d9a441→ Click to go back"
     next:

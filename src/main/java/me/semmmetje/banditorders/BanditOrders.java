@@ -572,7 +572,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                     List.of("&7Go to page %page%."), Map.of("page", String.valueOf(page)));
         }
         putButton(inventory, "storage.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
-                List.of("&7Return to the orders menu.", "", "&#d9a441→ Click to go back"), Map.of());
+                List.of("&7Return to your orders.", "", "&#d9a441→ Click to go back"), Map.of());
         if (page + 1 < pageCount) {
             putButton(inventory, "storage.buttons.next", 53, Material.ARROW, "&fNext page",
                     List.of("&7Go to page %page%."), Map.of("page", String.valueOf(page + 2)));
@@ -660,7 +660,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             saveCollectionPage(inventory, holder);
             collectionLocks.remove(holder.orderId);
             removeCompletedOrderIfClaimed(holder.orderId, player);
-            openOrders(player, 0, "all", "", "newest");
+            openMyOrders(player, 0, "newest");
             return;
         }
         int pageCount = Math.max(1, (stored.getOrDefault(holder.orderId, List.of()).size() + contentSlots.length - 1) / contentSlots.length);
