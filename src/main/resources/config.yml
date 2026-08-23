@@ -1,10 +1,29 @@
 max-orders-per-player: 10
 messages:
   prefix: "&#d9a441&lORDERS &8» &f"
+  no-permission: "%prefix%&cYou do not have permission to use orders."
+  usage: "%prefix%&7Use &f/orders&7, &f/orders mine&7 or &f/orders create <item|hand> <amount> <price>&7."
   no-economy: "%prefix%&cVault and an economy provider are required."
   invalid: "%prefix%&cUsage: /orders create <item|hand> <amount> <price per item>"
-  created: "%prefix%&aCreated an order for &#d9a441%amount%x %item%&a."
+  created: "%prefix%&aCreated an order for &#d9a441%amount%x %item% &aat &#d9a441%price% &aeach."
   deleted: "%prefix%&aYour order was cancelled and &#d9a441%money% &awas refunded."
+  delete-usage: "%prefix%&cUsage: /orders delete <order-id>"
+  order-not-found: "%prefix%&cOrder not found."
+  refund-failed: "%prefix%&cRefund failed; the order was kept safe."
   full: "%prefix%&cYou reached the maximum number of active orders."
   no-money: "%prefix%&cYou do not have enough money for this order."
   paid: "%prefix%&aDelivered &#d9a441%amount%x %item% &aand earned &#d9a441%money%&a."
+  payment-failed: "%prefix%&cThe payment failed. Your items were returned."
+  storage-locked: "%prefix%&cThis order storage is already open."
+
+  # New-order chat builder. Type 'cancel' during either question to stop.
+  builder-selected: "%prefix%&fSelected &#d9a441%item%&f."
+  builder-amount: "%prefix%&fType the wanted amount in chat, or type &#d9a441cancel&f."
+  builder-price: "%prefix%&fType the price per item in chat for &#d9a441%amount%x %item%&f."
+  builder-invalid-amount: "%prefix%&cEnter a whole number above zero, or type cancel."
+  builder-invalid-price: "%prefix%&cEnter a price above zero, or type cancel."
+  builder-cancelled: "%prefix%&fOrder creation cancelled."
+
+  admin-deleted: "%prefix%&aDeleted order &#d9a441%id%&a."
+  reloaded: "%prefix%&aBanditOrders configuration reloaded."
+  admin-usage: "%prefix%&7Use &f/orders admin <reload|delete>&7."

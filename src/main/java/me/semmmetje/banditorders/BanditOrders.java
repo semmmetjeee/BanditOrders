@@ -1,19 +1,781 @@
 package me.semmmetje.banditorders;
-import net.milkbowl.vault.economy.Economy;import org.bukkit.*;import org.bukkit.command.*;import org.bukkit.configuration.file.YamlConfiguration;import org.bukkit.entity.Player;import org.bukkit.event.*;import org.bukkit.event.inventory.*;import org.bukkit.inventory.*;import org.bukkit.inventory.meta.ItemMeta;import org.bukkit.plugin.RegisteredServiceProvider;import org.bukkit.plugin.java.JavaPlugin;import java.io.*;import java.util.*;
-public final class BanditOrders extends JavaPlugin implements Listener,CommandExecutor{
- record Order(String id,UUID buyer,Material item,int total,int remaining,double price){}
- private final Map<String,Order> orders=new LinkedHashMap<>();private final Map<String,List<ItemStack>> stored=new HashMap<>();private final Set<String> collectionLocks=new HashSet<>();private Economy eco;private File file;private YamlConfiguration gui;
- public void onEnable(){saveDefaultConfig();saveResource("gui.yml",false);file=new File(getDataFolder(),"orders.yml");gui=YamlConfiguration.loadConfiguration(new File(getDataFolder(),"gui.yml"));hook();load();Objects.requireNonNull(getCommand("orders")).setExecutor(this);getServer().getPluginManager().registerEvents(this,this);}
- private void hook(){RegisteredServiceProvider<Economy> p=getServer().getServicesManager().getRegistration(Economy.class);if(p!=null)eco=p.getProvider();}
- private void load(){YamlConfiguration y=YamlConfiguration.loadConfiguration(file);for(String id:y.getKeys(false)){try{orders.put(id,new Order(id,UUID.fromString(y.getString(id+".buyer")),Material.valueOf(y.getString(id+".item")),y.getInt(id+".total"),y.getInt(id+".remaining"),y.getDouble(id+".price")));}catch(Exception ignored){}}for(String id:orders.keySet())stored.put(id,new ArrayList<>(itemStacks(y,"storage."+id)));}
- private List<ItemStack> itemStacks(YamlConfiguration configuration,String path){List<?> values=configuration.getList(path,List.of());List<ItemStack> items=new ArrayList<>();for(Object value:values)if(value instanceof ItemStack stack)items.add(stack.clone());return items;}
- private void save(){YamlConfiguration y=new YamlConfiguration();for(Order o:orders.values()){String p=o.id;y.set(p+".buyer",o.buyer.toString());y.set(p+".item",o.item.name());y.set(p+".total",o.total);y.set(p+".remaining",o.remaining);y.set(p+".price",o.price);y.set("storage."+o.id,stored.getOrDefault(o.id,List.of()));}try{y.save(file);}catch(IOException e){getLogger().warning(e.getMessage());}}
- public boolean onCommand(CommandSender s,Command c,String l,String[] a){if(!(s instanceof Player p))return true;if(a.length==0){list(p,0,"newest","");return true;}if(a[0].equalsIgnoreCase("create"))return create(p,a);if(a[0].equalsIgnoreCase("delete"))return delete(p,a);if(a[0].equalsIgnoreCase("search")&&a.length==2){list(p,0,"search",a[1].equalsIgnoreCase("hand")?p.getInventory().getItemInMainHand().getType().name():a[1]);return true;}if(a[0].equalsIgnoreCase("filter")&&a.length==2){list(p,0,a[1].toLowerCase(),"");return true;}if(a[0].equalsIgnoreCase("admin")&&p.hasPermission("banditorders.admin")){if(a.length>2&&a[1].equalsIgnoreCase("delete")){orders.remove(a[2]);save();p.sendMessage(color("&aOrder deleted."));return true;}if(a.length>1&&a[1].equalsIgnoreCase("reload")){reloadConfig();gui=YamlConfiguration.loadConfiguration(new File(getDataFolder(),"gui.yml"));hook();p.sendMessage(color("&aOrders reloaded."));return true;}}list(p,0,"newest","");return true;}
- private boolean create(Player p,String[] a){if(eco==null){msg(p,"no-economy",Map.of());return true;}if(a.length<4){msg(p,"invalid",Map.of());return true;}Material m=a[1].equalsIgnoreCase("hand")?p.getInventory().getItemInMainHand().getType():Material.matchMaterial(a[1].toUpperCase());int amount;double price;try{amount=Integer.parseInt(a[2]);price=Double.parseDouble(a[3]);}catch(Exception e){msg(p,"invalid",Map.of());return true;}if(m==null||m.isAir()||amount<1||!Double.isFinite(price)||price<=0){msg(p,"invalid",Map.of());return true;}long own=orders.values().stream().filter(o->o.buyer.equals(p.getUniqueId())).count();if(own>=getConfig().getInt("max-orders-per-player",10)){msg(p,"full",Map.of());return true;}double total=amount*price;if(!Double.isFinite(total)||!eco.has(p,total)||!eco.withdrawPlayer(p,total).transactionSuccess()){msg(p,"no-money",Map.of());return true;}Order o=new Order(UUID.randomUUID().toString().substring(0,8),p.getUniqueId(),m,amount,amount,price);orders.put(o.id,o);save();msg(p,"created",Map.of("amount",""+amount,"item",m.name()));return true;}
- private boolean delete(Player p,String[] a){if(a.length!=2){p.sendMessage("/orders delete <order-id>");return true;}Order o=orders.get(a[1]);if(o==null||!o.buyer.equals(p.getUniqueId())){p.sendMessage(color("&cOrder not found."));return true;}double refund=o.remaining*o.price;if(eco==null||!eco.depositPlayer(p,refund).transactionSuccess()){p.sendMessage(color("&cRefund failed; the order was kept safe."));return true;}orders.remove(o.id);stored.remove(o.id);save();msg(p,"deleted",Map.of("money",eco.format(refund)));return true;}
- private void list(Player p,int page,String filter,String query){Inventory inv=Bukkit.createInventory(new ListHolder(page,filter,query),size("list.size",54),color(gui.getString("list.title",gui.getString("list-title"))));border(inv);List<Order> all=filtered(filter,query);for(int i=0;i<28&&page*28+i<all.size();i++){Order o=all.get(page*28+i);inv.setItem(content()[i],item(o.item,replace(gui.getString("list.order-name","&#d9a441%item%"),Map.of("item",nice(o.item))),gui.getStringList("list.order-lore").stream().map(x->replace(x,vars(o))).toList()));}p.openInventory(inv);}
- private void collect(Player p,Order o){if(!collectionLocks.add(o.id)){p.sendMessage(color("&cThis storage is already open."));return;}Inventory inv=Bukkit.createInventory(new CollectionHolder(o.id),size("storage.size",54),color(gui.getString("storage.title","&#d9a441&lORDER STORAGE")));for(ItemStack stack:stored.getOrDefault(o.id,List.of()))inv.addItem(stack);p.openInventory(inv);}private void deliver(Player p,Order o){Inventory inv=Bukkit.createInventory(new DeliveryHolder(o.id),size("delivery.size",27),color(gui.getString("delivery.title",gui.getString("delivery-title"))));border(inv);inv.setItem(gui.getInt("delivery.info-slot"),item(o.item,replace(gui.getString("delivery.info.name","&#d9a441&l%item%"),Map.of("item",nice(o.item),"remaining",""+o.remaining)),gui.getStringList("delivery.info.lore").stream().map(x->replace(x,Map.of("item",nice(o.item),"remaining",""+o.remaining))).toList()));p.openInventory(inv);}
- @EventHandler public void click(InventoryClickEvent e){if(!(e.getWhoClicked() instanceof Player p))return;if(e.getInventory().getHolder() instanceof ListHolder h){e.setCancelled(true);int i=slotIndex(e.getRawSlot());List<Order> all=new ArrayList<>(orders.values());if(i>=0&&h.page*28+i<filtered(h.filter,h.query).size()){Order o=filtered(h.filter,h.query).get(h.page*28+i);if(o.buyer.equals(p.getUniqueId()))collect(p,o);else if(o.remaining>0)deliver(p,o);}}else if(e.getInventory().getHolder() instanceof DeliveryHolder h){if(e.getRawSlot()<27&&!gui.getIntegerList("delivery.input-slots").contains(e.getRawSlot()))e.setCancelled(true);}}
- @EventHandler public void close(InventoryCloseEvent e){if(e.getInventory().getHolder() instanceof CollectionHolder h){List<ItemStack> left=new ArrayList<>();for(ItemStack stack:e.getInventory().getContents())if(stack!=null&&!stack.getType().isAir())left.add(stack.clone());stored.put(h.id,left);collectionLocks.remove(h.id);save();return;}if(!(e.getInventory().getHolder() instanceof DeliveryHolder h)||!(e.getPlayer() instanceof Player p))return;Order o=orders.get(h.id);if(o==null)return;int delivered=0;List<ItemStack> deposited=new ArrayList<>();for(int slot:gui.getIntegerList("input-slots")){ItemStack stack=e.getInventory().getItem(slot);if(stack!=null&&stack.getType()==o.item&&delivered<o.remaining){int take=Math.min(stack.getAmount(),o.remaining-delivered);ItemStack copy=stack.clone();copy.setAmount(take);deposited.add(copy);delivered+=take;stack.setAmount(stack.getAmount()-take);if(stack.getAmount()==0)e.getInventory().setItem(slot,null);}}for(int slot:gui.getIntegerList("input-slots")){ItemStack stack=e.getInventory().getItem(slot);if(stack!=null&&!stack.getType().isAir())p.getInventory().addItem(stack);}if(delivered<1)return;stored.computeIfAbsent(o.id,k->new ArrayList<>()).addAll(deposited);int left=o.remaining-delivered;orders.put(o.id,new Order(o.id,o.buyer,o.item,o.total,left,o.price));save();double paid=delivered*o.price;if(eco!=null)eco.depositPlayer(p,paid);msg(p,"paid",Map.of("amount",""+delivered,"item",nice(o.item),"money",eco==null?""+paid:eco.format(paid)));}
- record ListHolder(int page,String filter,String query)implements InventoryHolder{public Inventory getInventory(){return null;}}record CollectionHolder(String id)implements InventoryHolder{public Inventory getInventory(){return null;}}record DeliveryHolder(String id)implements InventoryHolder{public Inventory getInventory(){return null;}}
- private List<Order> filtered(String filter,String query){List<Order> out=new ArrayList<>(orders.values());if(filter.equals("search"))out.removeIf(o->!o.item.name().equalsIgnoreCase(query));if(filter.equals("delivered"))out.sort(Comparator.comparingInt((Order o)->o.total-o.remaining).reversed());else if(filter.equals("price"))out.sort(Comparator.comparingDouble((Order o)->o.price).reversed());else if(filter.equals("oldest"))Collections.reverse(out);return out;}private int[] content(){List<Integer> slots=gui.getIntegerList("list.content-slots");if(slots.isEmpty())slots=List.of(10,11,12,13,14,15,16,19,20,21,22,23,24,25,28,29,30,31,32,33,34,37,38,39,40,41,42,43);return slots.stream().mapToInt(Integer::intValue).toArray();}private int size(String path,int fallback){int value=gui.getInt(path,fallback);return value>=9&&value<=54&&value%9==0?value:fallback;}private int slotIndex(int slot){int[] slots=content();for(int i=0;i<slots.length;i++)if(slots[i]==slot)return i;return -1;}private void border(Inventory i){Material b=Material.matchMaterial(gui.getString("border.material","BLACK_STAINED_GLASS_PANE"));for(int x=0;x<i.getSize();x++)if(x<9||x>=i.getSize()-9||x%9==0||x%9==8)i.setItem(x,item(b==null?Material.BLACK_STAINED_GLASS_PANE:b," ",List.of()));}private Map<String,String> vars(Order o){return Map.of("buyer",Bukkit.getOfflinePlayer(o.buyer).getName()==null?"Unknown":Bukkit.getOfflinePlayer(o.buyer).getName(),"remaining",""+o.remaining,"total",""+o.total,"price",eco==null?""+o.price:eco.format(o.price));}private ItemStack item(Material m,String n,List<String> l){ItemStack s=new ItemStack(m);ItemMeta x=s.getItemMeta();x.setDisplayName(color(n));x.setLore(l.stream().map(this::color).toList());s.setItemMeta(x);return s;}private String replace(String x,Map<String,String> v){for(var e:v.entrySet())x=x.replace("%"+e.getKey()+"%",e.getValue());return x;}private String nice(Material m){return Arrays.stream(m.name().split("_")).map(x->x.substring(0,1)+x.substring(1).toLowerCase()).reduce((a,b)->a+" "+b).orElse(m.name());}private String color(String s){return ChatColor.translateAlternateColorCodes('&',s);}private void msg(Player p,String k,Map<String,String> v){String s=getConfig().getString("messages."+k,"");for(var e:v.entrySet())s=s.replace("%"+e.getKey()+"%",e.getValue());p.sendMessage(color(s.replace("%prefix%",getConfig().getString("messages.prefix",""))));}}
+
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+
+public final class BanditOrders extends JavaPlugin implements Listener, CommandExecutor {
+    private static final Pattern HEX = Pattern.compile("(?i)&#([0-9a-f]{6})");
+    private static final List<Material> SELECTABLE_MATERIALS = Arrays.stream(Material.values())
+            .filter(Material::isItem)
+            .filter(material -> !material.isAir() && !material.name().startsWith("LEGACY_"))
+            .sorted(Comparator.comparing(Material::name))
+            .toList();
+
+    private final Map<String, Order> orders = new LinkedHashMap<>();
+    private final Map<String, List<ItemStack>> stored = new HashMap<>();
+    private final Set<String> collectionLocks = new HashSet<>();
+    private final Map<UUID, Draft> drafts = new ConcurrentHashMap<>();
+
+    private Economy economy;
+    private File ordersFile;
+    private YamlConfiguration gui;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+        saveResource("gui.yml", false);
+        ordersFile = new File(getDataFolder(), "orders.yml");
+        reloadGui();
+        hookEconomy();
+        loadOrders();
+        Objects.requireNonNull(getCommand("orders"), "orders command is missing from plugin.yml").setExecutor(this);
+        getServer().getPluginManager().registerEvents(this, this);
+    }
+
+    @Override
+    public void onDisable() {
+        saveOrders();
+    }
+
+    private void reloadGui() {
+        File guiFile = new File(getDataFolder(), "gui.yml");
+        gui = YamlConfiguration.loadConfiguration(guiFile);
+        try (InputStream resource = getResource("gui.yml")) {
+            if (resource != null) {
+                YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(resource, StandardCharsets.UTF_8));
+                gui.setDefaults(defaults);
+                gui.options().copyDefaults(true);
+                gui.save(guiFile);
+            }
+        } catch (IOException exception) {
+            getLogger().warning("Could not migrate gui.yml: " + exception.getMessage());
+        }
+    }
+
+    private void hookEconomy() {
+        RegisteredServiceProvider<Economy> provider = getServer().getServicesManager().getRegistration(Economy.class);
+        economy = provider == null ? null : provider.getProvider();
+    }
+
+    private void loadOrders() {
+        orders.clear();
+        stored.clear();
+        YamlConfiguration data = YamlConfiguration.loadConfiguration(ordersFile);
+        for (String id : data.getKeys(false)) {
+            if (id.equals("storage") || !data.contains(id + ".buyer")) continue;
+            try {
+                orders.put(id, new Order(
+                        id,
+                        UUID.fromString(Objects.requireNonNull(data.getString(id + ".buyer"))),
+                        Material.valueOf(Objects.requireNonNull(data.getString(id + ".item"))),
+                        data.getInt(id + ".total"),
+                        data.getInt(id + ".remaining"),
+                        data.getDouble(id + ".price")
+                ));
+            } catch (RuntimeException exception) {
+                getLogger().warning("Skipped invalid order " + id + ": " + exception.getMessage());
+            }
+        }
+        for (String id : orders.keySet()) stored.put(id, new ArrayList<>(itemStacks(data, "storage." + id)));
+    }
+
+    private List<ItemStack> itemStacks(YamlConfiguration configuration, String path) {
+        List<?> values = configuration.getList(path, List.of());
+        List<ItemStack> items = new ArrayList<>();
+        for (Object value : values) if (value instanceof ItemStack stack) items.add(stack.clone());
+        return items;
+    }
+
+    private void saveOrders() {
+        YamlConfiguration data = new YamlConfiguration();
+        for (Order order : orders.values()) {
+            String path = order.id();
+            data.set(path + ".buyer", order.buyer().toString());
+            data.set(path + ".item", order.item().name());
+            data.set(path + ".total", order.total());
+            data.set(path + ".remaining", order.remaining());
+            data.set(path + ".price", order.price());
+            data.set("storage." + order.id(), stored.getOrDefault(order.id(), List.of()));
+        }
+        try {
+            data.save(ordersFile);
+        } catch (IOException exception) {
+            getLogger().warning("Could not save orders.yml: " + exception.getMessage());
+        }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) return true;
+        if (!player.hasPermission("banditorders.use")) {
+            message(player, "no-permission", Map.of());
+            return true;
+        }
+        if (args.length == 0) {
+            openOrders(player, 0, "all", "", "newest");
+            return true;
+        }
+
+        switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "create" -> { return createFromCommand(player, args); }
+            case "delete" -> { return deleteOrder(player, args); }
+            case "search" -> {
+                if (args.length == 2) {
+                    String query = args[1].equalsIgnoreCase("hand")
+                            ? player.getInventory().getItemInMainHand().getType().name()
+                            : args[1];
+                    openOrders(player, 0, "search", query, "newest");
+                    return true;
+                }
+            }
+            case "filter" -> {
+                if (args.length == 2) {
+                    openOrders(player, 0, "all", "", normalizeSort(args[1]));
+                    return true;
+                }
+            }
+            case "mine", "my", "own" -> {
+                openOrders(player, 0, "mine", "", "newest");
+                return true;
+            }
+            case "admin" -> {
+                if (player.hasPermission("banditorders.admin")) return admin(player, args);
+            }
+            default -> { }
+        }
+
+        message(player, "usage", Map.of());
+        return true;
+    }
+
+    private boolean admin(Player player, String[] args) {
+        if (args.length > 2 && args[1].equalsIgnoreCase("delete")) {
+            Order removed = orders.remove(args[2]);
+            if (removed != null) stored.remove(removed.id());
+            saveOrders();
+            message(player, removed == null ? "order-not-found" : "admin-deleted", Map.of("id", args[2]));
+            return true;
+        }
+        if (args.length > 1 && args[1].equalsIgnoreCase("reload")) {
+            reloadConfig();
+            getConfig().options().copyDefaults(true);
+            saveConfig();
+            reloadGui();
+            hookEconomy();
+            message(player, "reloaded", Map.of());
+            return true;
+        }
+        message(player, "admin-usage", Map.of());
+        return true;
+    }
+
+    private boolean createFromCommand(Player player, String[] args) {
+        if (args.length < 4) {
+            message(player, "invalid", Map.of());
+            return true;
+        }
+        Material material = args[1].equalsIgnoreCase("hand")
+                ? player.getInventory().getItemInMainHand().getType()
+                : Material.matchMaterial(args[1].toUpperCase(Locale.ROOT));
+        int amount;
+        double price;
+        try {
+            amount = Integer.parseInt(args[2]);
+            price = Double.parseDouble(args[3]);
+        } catch (NumberFormatException exception) {
+            message(player, "invalid", Map.of());
+            return true;
+        }
+        createOrder(player, material, amount, price);
+        return true;
+    }
+
+    private boolean createOrder(Player player, Material material, int amount, double price) {
+        if (economy == null) {
+            message(player, "no-economy", Map.of());
+            return false;
+        }
+        if (material == null || material.isAir() || !material.isItem() || amount < 1 || !Double.isFinite(price) || price <= 0) {
+            message(player, "invalid", Map.of());
+            return false;
+        }
+        long own = orders.values().stream().filter(order -> order.buyer().equals(player.getUniqueId()) && order.remaining() > 0).count();
+        if (own >= getConfig().getInt("max-orders-per-player", 10)) {
+            message(player, "full", Map.of());
+            return false;
+        }
+        double totalPrice = amount * price;
+        if (!Double.isFinite(totalPrice) || !economy.has(player, totalPrice)) {
+            message(player, "no-money", Map.of());
+            return false;
+        }
+        EconomyResponse withdrawal = economy.withdrawPlayer(player, totalPrice);
+        if (!withdrawal.transactionSuccess()) {
+            message(player, "no-money", Map.of());
+            return false;
+        }
+
+        Order order = new Order(UUID.randomUUID().toString().substring(0, 8), player.getUniqueId(), material, amount, amount, price);
+        orders.put(order.id(), order);
+        saveOrders();
+        message(player, "created", Map.of(
+                "amount", String.valueOf(amount),
+                "item", nice(material),
+                "price", money(price),
+                "total", money(totalPrice)
+        ));
+        return true;
+    }
+
+    private boolean deleteOrder(Player player, String[] args) {
+        if (args.length != 2) {
+            message(player, "delete-usage", Map.of());
+            return true;
+        }
+        Order order = orders.get(args[1]);
+        if (order == null || !order.buyer().equals(player.getUniqueId())) {
+            message(player, "order-not-found", Map.of());
+            return true;
+        }
+        double refund = order.remaining() * order.price();
+        if (economy == null || !economy.depositPlayer(player, refund).transactionSuccess()) {
+            message(player, "refund-failed", Map.of());
+            return true;
+        }
+        orders.remove(order.id());
+        stored.remove(order.id());
+        saveOrders();
+        message(player, "deleted", Map.of("money", money(refund)));
+        return true;
+    }
+
+    private void openOrders(Player player, int requestedPage, String scope, String query, String sort) {
+        int inventorySize = inventorySize("list.size", 54);
+        int[] contentSlots = slots("list.content-slots", defaultOrderSlots(), inventorySize);
+        List<Order> visible = filtered(scope, query, sort, player.getUniqueId());
+        int pageCount = Math.max(1, (visible.size() + contentSlots.length - 1) / contentSlots.length);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Inventory inventory = Bukkit.createInventory(new ListHolder(page, scope, query, sort), inventorySize,
+                color(gui.getString("list.title", "&#d9a441&lMARKET ORDERS")));
+        border(inventory);
+
+        int from = page * contentSlots.length;
+        for (int index = 0; index < contentSlots.length && from + index < visible.size(); index++) {
+            Order order = visible.get(from + index);
+            Map<String, String> variables = variables(order);
+            inventory.setItem(contentSlots[index], item(
+                    order.item(),
+                    replace(gui.getString("list.order-name", "&#d9a441%item%"), variables),
+                    replace(gui.getStringList("list.order-lore"), variables),
+                    null,
+                    false
+            ));
+        }
+
+        putButton(inventory, "list.sort", 4, Material.HOPPER, "&#d9a441&lSORT: &f%sort%",
+                List.of("&7Current: &f%sort%", "&7Next: &f%next_sort%", "", "&#d9a441→ Click to change"),
+                Map.of("sort", sortName(sort), "next_sort", sortName(nextSort(sort))));
+        putButton(inventory, "list.buttons.previous", 45, Material.ARROW, "&fPrevious page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
+        putButton(inventory, "list.buttons.new-order", 48, Material.EMERALD, "&#62dc91&lNEW ORDER", List.of("&7Create a new wanted order.", "", "&#d9a441→ Click to start"), Map.of());
+        putButton(inventory, "list.buttons.your-orders", 49, Material.CHEST, "&#55b7ff&lYOUR ORDERS", List.of("&7View your orders and storage.", "", "&#d9a441→ Click to open"), Map.of());
+        putButton(inventory, "list.buttons.back", 50, Material.OAK_DOOR, "&fBack to market", List.of("&7Return to the main market menu.", "", "&#d9a441→ Click to go back"), Map.of());
+        putButton(inventory, "list.buttons.next", 53, Material.ARROW, "&fNext page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
+        player.openInventory(inventory);
+    }
+
+    private void openItemSelector(Player player, int requestedPage) {
+        int inventorySize = inventorySize("selection.size", 54);
+        int[] contentSlots = slots("selection.content-slots", defaultSelectionSlots(), inventorySize);
+        int pageCount = Math.max(1, (SELECTABLE_MATERIALS.size() + contentSlots.length - 1) / contentSlots.length);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Inventory inventory = Bukkit.createInventory(new SelectionHolder(page), inventorySize,
+                color(gui.getString("selection.title", "&#d9a441&lSELECT AN ITEM")));
+        if (gui.getBoolean("selection.border.enabled", false)) border(inventory);
+
+        int from = page * contentSlots.length;
+        for (int index = 0; index < contentSlots.length && from + index < SELECTABLE_MATERIALS.size(); index++) {
+            Material material = SELECTABLE_MATERIALS.get(from + index);
+            Map<String, String> variables = Map.of("item", nice(material));
+            String name = replace(gui.getString("selection.item.name", "&f%item%"), variables);
+            List<String> lore = replace(configuredLore("selection.item.lore", List.of("", "&#d9a441→ Click to select item")), variables);
+            inventory.setItem(contentSlots[index], item(material, name, lore, null, false));
+        }
+
+        putButton(inventory, "selection.buttons.previous", 45, Material.ARROW, "&fPrevious page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
+        putButton(inventory, "selection.buttons.info", 49, Material.BOOK, "&#d9a441&lITEMS", List.of("&7Page &f%page%&7/&f%pages%"), Map.of("page", String.valueOf(page + 1), "pages", String.valueOf(pageCount)));
+        putButton(inventory, "selection.buttons.next", 53, Material.ARROW, "&fNext page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
+        player.openInventory(inventory);
+    }
+
+    private void openCollection(Player player, Order order) {
+        if (!collectionLocks.add(order.id())) {
+            message(player, "storage-locked", Map.of());
+            return;
+        }
+        Inventory inventory = Bukkit.createInventory(new CollectionHolder(order.id()), inventorySize("storage.size", 54),
+                color(gui.getString("storage.title", "&#d9a441&lORDER STORAGE")));
+        for (ItemStack stack : stored.getOrDefault(order.id(), List.of())) {
+            Map<Integer, ItemStack> leftovers = inventory.addItem(stack.clone());
+            if (!leftovers.isEmpty()) getLogger().warning("Storage for order " + order.id() + " is larger than its menu.");
+        }
+        player.openInventory(inventory);
+    }
+
+    private void openDelivery(Player player, Order order) {
+        int inventorySize = inventorySize("delivery.size", 27);
+        Inventory inventory = Bukkit.createInventory(new DeliveryHolder(order.id()), inventorySize,
+                color(gui.getString("delivery.title", "&#d9a441&lDELIVER ORDER")));
+        border(inventory);
+        Map<String, String> variables = variables(order);
+        int infoSlot = validSlot(gui.getInt("delivery.info.slot", gui.getInt("delivery.info-slot", 4)), 4, inventorySize);
+        inventory.setItem(infoSlot, configuredItem("delivery.info", order.item(), "&#d9a441&l%item%",
+                List.of("&7Place matching items in the slots.", "&7They are paid when you close the menu.", "&7Remaining: &#d9a441%remaining%"), variables));
+        for (int inputSlot : slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), inventorySize)) inventory.setItem(inputSlot, null);
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        Inventory top = event.getView().getTopInventory();
+        InventoryHolder holder = top.getHolder();
+
+        if (holder instanceof ListHolder listHolder) {
+            event.setCancelled(true);
+            if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) return;
+            handleListClick(player, event.getRawSlot(), listHolder);
+            return;
+        }
+        if (holder instanceof SelectionHolder selectionHolder) {
+            event.setCancelled(true);
+            if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) return;
+            handleSelectionClick(player, event.getRawSlot(), selectionHolder);
+            return;
+        }
+        if (holder instanceof DeliveryHolder && event.getRawSlot() >= 0 && event.getRawSlot() < top.getSize()) {
+            Set<Integer> inputs = asSet(slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), top.getSize()));
+            if (!inputs.contains(event.getRawSlot())) event.setCancelled(true);
+        }
+    }
+
+    private void handleListClick(Player player, int slot, ListHolder holder) {
+        int size = inventorySize("list.size", 54);
+        if (buttonClicked("list.sort", slot, 4, size)) {
+            openOrders(player, 0, holder.scope(), holder.query(), nextSort(holder.sort()));
+            return;
+        }
+        if (buttonClicked("list.buttons.previous", slot, 45, size)) {
+            if (holder.page() > 0) openOrders(player, holder.page() - 1, holder.scope(), holder.query(), holder.sort());
+            return;
+        }
+        if (buttonClicked("list.buttons.next", slot, 53, size)) {
+            openOrders(player, holder.page() + 1, holder.scope(), holder.query(), holder.sort());
+            return;
+        }
+        if (buttonClicked("list.buttons.new-order", slot, 48, size)) {
+            openItemSelector(player, 0);
+            return;
+        }
+        if (buttonClicked("list.buttons.your-orders", slot, 49, size)) {
+            openOrders(player, 0, "mine", "", holder.sort());
+            return;
+        }
+        if (buttonClicked("list.buttons.back", slot, 50, size)) {
+            player.closeInventory();
+            String command = gui.getString("list.buttons.back.command", "markt");
+            if (command != null && !command.isBlank()) player.performCommand(command.startsWith("/") ? command.substring(1) : command);
+            return;
+        }
+
+        int[] contentSlots = slots("list.content-slots", defaultOrderSlots(), size);
+        int index = indexOf(contentSlots, slot);
+        List<Order> visible = filtered(holder.scope(), holder.query(), holder.sort(), player.getUniqueId());
+        int orderIndex = holder.page() * contentSlots.length + index;
+        if (index < 0 || orderIndex < 0 || orderIndex >= visible.size()) return;
+        Order order = visible.get(orderIndex);
+        if (order.buyer().equals(player.getUniqueId())) openCollection(player, order);
+        else if (order.remaining() > 0) openDelivery(player, order);
+    }
+
+    private void handleSelectionClick(Player player, int slot, SelectionHolder holder) {
+        int size = inventorySize("selection.size", 54);
+        if (buttonClicked("selection.buttons.previous", slot, 45, size)) {
+            if (holder.page() > 0) openItemSelector(player, holder.page() - 1);
+            return;
+        }
+        if (buttonClicked("selection.buttons.next", slot, 53, size)) {
+            openItemSelector(player, holder.page() + 1);
+            return;
+        }
+        if (buttonClicked("selection.buttons.info", slot, 49, size)) return;
+
+        int[] contentSlots = slots("selection.content-slots", defaultSelectionSlots(), size);
+        int localIndex = indexOf(contentSlots, slot);
+        int materialIndex = holder.page() * contentSlots.length + localIndex;
+        if (localIndex < 0 || materialIndex < 0 || materialIndex >= SELECTABLE_MATERIALS.size()) return;
+        Material material = SELECTABLE_MATERIALS.get(materialIndex);
+        drafts.put(player.getUniqueId(), new Draft(material, DraftStep.AMOUNT, 0));
+        player.closeInventory();
+        message(player, "builder-selected", Map.of("item", nice(material)));
+        message(player, "builder-amount", Map.of("item", nice(material)));
+    }
+
+    @SuppressWarnings("deprecation")
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onChat(AsyncPlayerChatEvent event) {
+        Draft draft = drafts.get(event.getPlayer().getUniqueId());
+        if (draft == null) return;
+        event.setCancelled(true);
+        String input = event.getMessage().trim();
+        Bukkit.getScheduler().runTask(this, () -> handleDraftInput(event.getPlayer(), input));
+    }
+
+    private void handleDraftInput(Player player, String input) {
+        Draft draft = drafts.get(player.getUniqueId());
+        if (draft == null) return;
+        if (input.equalsIgnoreCase("cancel")) {
+            drafts.remove(player.getUniqueId());
+            message(player, "builder-cancelled", Map.of());
+            return;
+        }
+        if (draft.step() == DraftStep.AMOUNT) {
+            try {
+                int amount = Integer.parseInt(input);
+                if (amount < 1) throw new NumberFormatException();
+                drafts.put(player.getUniqueId(), new Draft(draft.material(), DraftStep.PRICE, amount));
+                message(player, "builder-price", Map.of("amount", String.valueOf(amount), "item", nice(draft.material())));
+            } catch (NumberFormatException exception) {
+                message(player, "builder-invalid-amount", Map.of());
+            }
+            return;
+        }
+        try {
+            double price = Double.parseDouble(input.replace(',', '.'));
+            if (!Double.isFinite(price) || price <= 0) throw new NumberFormatException();
+            drafts.remove(player.getUniqueId());
+            createOrder(player, draft.material(), draft.amount(), price);
+        } catch (NumberFormatException exception) {
+            message(player, "builder-invalid-price", Map.of());
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getInventory().getHolder() instanceof CollectionHolder holder) {
+            List<ItemStack> remainingItems = new ArrayList<>();
+            for (ItemStack stack : event.getInventory().getContents()) {
+                if (stack != null && !stack.getType().isAir()) remainingItems.add(stack.clone());
+            }
+            stored.put(holder.orderId(), remainingItems);
+            collectionLocks.remove(holder.orderId());
+            saveOrders();
+            return;
+        }
+        if (!(event.getInventory().getHolder() instanceof DeliveryHolder holder) || !(event.getPlayer() instanceof Player player)) return;
+        finishDelivery(player, event.getInventory(), holder.orderId());
+    }
+
+    private void finishDelivery(Player player, Inventory inventory, String orderId) {
+        Set<Integer> inputSlots = asSet(slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), inventory.getSize()));
+        Order order = orders.get(orderId);
+        if (order == null) {
+            returnInputs(player, inventory, inputSlots);
+            return;
+        }
+        int delivered = 0;
+        List<ItemStack> deposited = new ArrayList<>();
+
+        for (int slot : inputSlots) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || stack.getType().isAir() || stack.getType() != order.item() || delivered >= order.remaining()) continue;
+            int taken = Math.min(stack.getAmount(), order.remaining() - delivered);
+            ItemStack copy = stack.clone();
+            copy.setAmount(taken);
+            deposited.add(copy);
+            delivered += taken;
+            stack.setAmount(stack.getAmount() - taken);
+            if (stack.getAmount() <= 0) inventory.setItem(slot, null);
+        }
+
+        returnInputs(player, inventory, inputSlots);
+        if (delivered < 1) return;
+        double payment = delivered * order.price();
+        if (economy == null || !economy.depositPlayer(player, payment).transactionSuccess()) {
+            for (ItemStack stack : deposited) giveOrDrop(player, stack);
+            message(player, "payment-failed", Map.of());
+            return;
+        }
+
+        stored.computeIfAbsent(order.id(), ignored -> new ArrayList<>()).addAll(deposited);
+        orders.put(order.id(), new Order(order.id(), order.buyer(), order.item(), order.total(), order.remaining() - delivered, order.price()));
+        saveOrders();
+        message(player, "paid", Map.of("amount", String.valueOf(delivered), "item", nice(order.item()), "money", money(payment)));
+    }
+
+    private void returnInputs(Player player, Inventory inventory, Collection<Integer> slots) {
+        for (int slot : slots) {
+            if (slot < 0 || slot >= inventory.getSize()) continue;
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+            inventory.setItem(slot, null);
+            giveOrDrop(player, stack);
+        }
+    }
+
+    private void giveOrDrop(Player player, ItemStack stack) {
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
+        leftovers.values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+    }
+
+    private List<Order> filtered(String scope, String query, String sort, UUID viewer) {
+        List<Order> result = new ArrayList<>(orders.values());
+        if (scope.equals("mine")) result.removeIf(order -> !order.buyer().equals(viewer));
+        else result.removeIf(order -> order.remaining() <= 0);
+        if (scope.equals("search")) result.removeIf(order -> !order.item().name().equalsIgnoreCase(query));
+
+        switch (normalizeSort(sort)) {
+            case "oldest" -> { }
+            case "price-desc" -> result.sort(Comparator.comparingDouble(Order::price).reversed());
+            case "price-asc" -> result.sort(Comparator.comparingDouble(Order::price));
+            default -> java.util.Collections.reverse(result);
+        }
+        return result;
+    }
+
+    private String normalizeSort(String sort) {
+        if (sort == null) return "newest";
+        return switch (sort.toLowerCase(Locale.ROOT)) {
+            case "oldest", "oudste" -> "oldest";
+            case "price", "expensive", "duurste", "price-desc" -> "price-desc";
+            case "cheap", "cheapest", "goedkoopste", "price-asc" -> "price-asc";
+            default -> "newest";
+        };
+    }
+
+    private String nextSort(String sort) {
+        return switch (normalizeSort(sort)) {
+            case "newest" -> "oldest";
+            case "oldest" -> "price-desc";
+            case "price-desc" -> "price-asc";
+            default -> "newest";
+        };
+    }
+
+    private String sortName(String sort) {
+        String normalized = normalizeSort(sort);
+        return gui.getString("list.sort.names." + normalized, switch (normalized) {
+            case "oldest" -> "Oudste";
+            case "price-desc" -> "Duurste per item";
+            case "price-asc" -> "Goedkoopste per item";
+            default -> "Nieuwste";
+        });
+    }
+
+    private void border(Inventory inventory) {
+        if (!gui.getBoolean("border.enabled", true)) return;
+        ItemStack border = configuredItem("border", Material.BLACK_STAINED_GLASS_PANE, " ", List.of(), Map.of());
+        int rows = inventory.getSize() / 9;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            int row = slot / 9;
+            int column = slot % 9;
+            if (row == 0 || row == rows - 1 || column == 0 || column == 8) inventory.setItem(slot, border);
+        }
+    }
+
+    private void putButton(Inventory inventory, String path, int fallbackSlot, Material fallbackMaterial,
+                           String fallbackName, List<String> fallbackLore, Map<String, String> variables) {
+        if (!gui.getBoolean(path + ".enabled", true)) return;
+        int slot = validSlot(gui.getInt(path + ".slot", fallbackSlot), fallbackSlot, inventory.getSize());
+        inventory.setItem(slot, configuredItem(path, fallbackMaterial, fallbackName, fallbackLore, variables));
+    }
+
+    private boolean buttonClicked(String path, int clickedSlot, int fallbackSlot, int size) {
+        return gui.getBoolean(path + ".enabled", true)
+                && clickedSlot == validSlot(gui.getInt(path + ".slot", fallbackSlot), fallbackSlot, size);
+    }
+
+    private ItemStack configuredItem(String path, Material fallbackMaterial, String fallbackName,
+                                     List<String> fallbackLore, Map<String, String> variables) {
+        Material material = Material.matchMaterial(gui.getString(path + ".material", fallbackMaterial.name()));
+        if (material == null || !material.isItem() || material.isAir()) material = fallbackMaterial;
+        String name = replace(gui.getString(path + ".name", fallbackName), variables);
+        List<String> lore = replace(configuredLore(path + ".lore", fallbackLore), variables);
+        Integer customModelData = gui.contains(path + ".custom-model-data") ? gui.getInt(path + ".custom-model-data") : null;
+        boolean glow = gui.getBoolean(path + ".glow", false);
+        return item(material, name, lore, customModelData, glow);
+    }
+
+    private List<String> configuredLore(String path, List<String> fallback) {
+        return gui.contains(path) ? gui.getStringList(path) : fallback;
+    }
+
+    private ItemStack item(Material material, String name, List<String> lore, Integer customModelData, boolean glow) {
+        ItemStack stack = new ItemStack(material);
+        ItemMeta meta = stack.getItemMeta();
+        meta.setDisplayName(color(name));
+        meta.setLore(lore.stream().map(this::color).toList());
+        if (customModelData != null) meta.setCustomModelData(customModelData);
+        if (glow) {
+            meta.setEnchantmentGlintOverride(true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    private Map<String, String> variables(Order order) {
+        String buyer = Bukkit.getOfflinePlayer(order.buyer()).getName();
+        return Map.of(
+                "id", order.id(),
+                "item", nice(order.item()),
+                "buyer", buyer == null ? "Unknown" : buyer,
+                "remaining", String.valueOf(order.remaining()),
+                "total", String.valueOf(order.total()),
+                "price", money(order.price()),
+                "total_price", money(order.remaining() * order.price())
+        );
+    }
+
+    private List<String> replace(List<String> lines, Map<String, String> variables) {
+        return lines.stream().map(line -> replace(line, variables)).toList();
+    }
+
+    private String replace(String input, Map<String, String> variables) {
+        String result = input == null ? "" : input;
+        for (Map.Entry<String, String> entry : variables.entrySet()) result = result.replace("%" + entry.getKey() + "%", entry.getValue());
+        return result;
+    }
+
+    private String nice(Material material) {
+        return Arrays.stream(material.name().split("_"))
+                .map(part -> part.substring(0, 1) + part.substring(1).toLowerCase(Locale.ROOT))
+                .reduce((first, second) -> first + " " + second)
+                .orElse(material.name());
+    }
+
+    private String money(double value) {
+        return economy == null ? String.format(Locale.US, "%.2f", value) : economy.format(value);
+    }
+
+    private String color(String input) {
+        if (input == null || input.isEmpty()) return "";
+        Matcher matcher = HEX.matcher(input);
+        StringBuffer output = new StringBuffer();
+        while (matcher.find()) {
+            StringBuilder replacement = new StringBuilder("&x");
+            for (char character : matcher.group(1).toCharArray()) replacement.append('&').append(character);
+            matcher.appendReplacement(output, Matcher.quoteReplacement(replacement.toString()));
+        }
+        matcher.appendTail(output);
+        return ChatColor.translateAlternateColorCodes('&', output.toString());
+    }
+
+    private void message(Player player, String key, Map<String, String> variables) {
+        String configured = getConfig().getString("messages." + key, "");
+        String prefix = getConfig().getString("messages.prefix", "");
+        player.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)));
+    }
+
+    private int inventorySize(String path, int fallback) {
+        int value = gui.getInt(path, fallback);
+        return value >= 9 && value <= 54 && value % 9 == 0 ? value : fallback;
+    }
+
+    private int validSlot(int value, int fallback, int size) {
+        return value >= 0 && value < size ? value : Math.max(0, Math.min(fallback, size - 1));
+    }
+
+    private int[] slots(String path, List<Integer> fallback, int size) {
+        List<Integer> configured = gui.contains(path) ? gui.getIntegerList(path) : fallback;
+        int[] result = configured.stream().filter(slot -> slot >= 0 && slot < size).distinct().mapToInt(Integer::intValue).toArray();
+        if (result.length > 0) return result;
+        return fallback.stream().filter(slot -> slot >= 0 && slot < size).distinct().mapToInt(Integer::intValue).toArray();
+    }
+
+    private List<Integer> defaultOrderSlots() {
+        return List.of(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43);
+    }
+
+    private List<Integer> defaultSelectionSlots() {
+        return IntStream.range(0, 45).boxed().toList();
+    }
+
+    private int indexOf(int[] values, int target) {
+        for (int index = 0; index < values.length; index++) if (values[index] == target) return index;
+        return -1;
+    }
+
+    private Set<Integer> asSet(int[] values) {
+        Set<Integer> result = new HashSet<>();
+        for (int value : values) result.add(value);
+        return result;
+    }
+
+    private record Order(String id, UUID buyer, Material item, int total, int remaining, double price) { }
+    private record Draft(Material material, DraftStep step, int amount) { }
+    private enum DraftStep { AMOUNT, PRICE }
+
+    private record ListHolder(int page, String scope, String query, String sort) implements InventoryHolder {
+        @Override public Inventory getInventory() { return null; }
+    }
+
+    private record SelectionHolder(int page) implements InventoryHolder {
+        @Override public Inventory getInventory() { return null; }
+    }
+
+    private record CollectionHolder(String orderId) implements InventoryHolder {
+        @Override public Inventory getInventory() { return null; }
+    }
+
+    private record DeliveryHolder(String orderId) implements InventoryHolder {
+        @Override public Inventory getInventory() { return null; }
+    }
+}
