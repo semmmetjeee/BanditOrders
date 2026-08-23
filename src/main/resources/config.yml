@@ -18,12 +18,9 @@ messages:
   payment-failed: "%prefix%&cThe payment failed. Your items were returned."
   storage-locked: "%prefix%&cThis order storage is already open."
 
-  # New-order chat builder. Type 'cancel' during either question to stop.
-  builder-selected: "%prefix%&fSelected &#d9a441%item%&f."
-  builder-amount: "%prefix%&fType the wanted amount in chat, or type &#d9a441cancel&f."
-  builder-price: "%prefix%&fType the price per item in chat for &#d9a441%amount%x %item%&f."
-  builder-invalid-amount: "%prefix%&cEnter a whole number above zero, or type cancel."
-  builder-invalid-price: "%prefix%&cEnter a price above zero, or type cancel."
+  # Validation messages for the native order input dialog.
+  builder-invalid-amount: "%prefix%&cEnter a whole number above zero."
+  builder-invalid-price: "%prefix%&cEnter a price above zero."
   builder-cancelled: "%prefix%&fOrder creation cancelled."
 
   admin-deleted: "%prefix%&aDeleted order &#d9a441%id% &afrom &#d9a441%buyer% &aand refunded &#d9a441%refund%&a."

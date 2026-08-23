@@ -92,7 +92,7 @@ list:
         - "&7Go to page %page%."
 
 # Clicking New Order opens every usable Minecraft item across multiple pages.
-# After choosing an item, the player enters amount and price in chat.
+# After choosing an item, a native Minecraft dialog asks for amount and price.
 selection:
   size: 54
   title: "&#d9a441&lSELECT AN ITEM"
@@ -127,6 +127,25 @@ selection:
       name: "&fNext page"
       lore:
         - "&7Go to page %page%."
+
+# Native Paper/Minecraft input dialog. Actions are callback-based and therefore
+# keep working when any title, label, button name or tooltip is changed.
+order-dialog:
+  title: "&#d9a441&lCREATE %item% ORDER"
+  input-width: 300
+  button-width: 150
+  amount:
+    label: "&fAmount"
+    initial: "1"
+  price:
+    label: "&fPrice per item"
+    initial: ""
+  confirm:
+    name: "&#62dc91&lCREATE ORDER"
+    tooltip: "&fCreate this order."
+  cancel:
+    name: "&#e3262e&lCANCEL"
+    tooltip: "&fCancel this order."
 
 delivery:
   size: 27

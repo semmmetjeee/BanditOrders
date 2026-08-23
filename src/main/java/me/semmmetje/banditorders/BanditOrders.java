@@ -1,7 +1,16 @@
 package me.semmmetje.banditorders;
 
+import io.papermc.paper.dialog.Dialog;
+import io.papermc.paper.registry.data.dialog.ActionButton;
+import io.papermc.paper.registry.data.dialog.DialogBase;
+import io.papermc.paper.registry.data.dialog.action.DialogAction;
+import io.papermc.paper.registry.data.dialog.input.DialogInput;
+import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickCallback;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -13,12 +22,10 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -46,13 +53,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 public final class BanditOrders extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final Pattern HEX = Pattern.compile("(?i)&#([0-9a-f]{6})");
+    private static final LegacyComponentSerializer LEGACY_COMPONENTS = LegacyComponentSerializer.builder()
+            .character(ChatColor.COLOR_CHAR)
+            .hexColors()
+            .useUnusualXRepeatedCharacterHexFormat()
+            .build();
     private static final List<Material> SELECTABLE_MATERIALS = Arrays.stream(Material.values())
             .filter(Material::isItem)
             .filter(material -> !material.isAir() && !material.name().startsWith("LEGACY_"))
@@ -62,7 +73,6 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     private final Map<String, Order> orders = new LinkedHashMap<>();
     private final Map<String, List<ItemStack>> stored = new HashMap<>();
     private final Set<String> collectionLocks = new HashSet<>();
-    private final Map<UUID, Draft> drafts = new ConcurrentHashMap<>();
 
     private Economy economy;
     private File ordersFile;
@@ -555,49 +565,87 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         int materialIndex = holder.page() * contentSlots.length + localIndex;
         if (localIndex < 0 || materialIndex < 0 || materialIndex >= SELECTABLE_MATERIALS.size()) return;
         Material material = SELECTABLE_MATERIALS.get(materialIndex);
-        drafts.put(player.getUniqueId(), new Draft(material, DraftStep.AMOUNT, 0));
         player.closeInventory();
-        message(player, "builder-selected", Map.of("item", nice(material)));
-        message(player, "builder-amount", Map.of("item", nice(material)));
+        Bukkit.getScheduler().runTask(this, () -> openOrderDialog(player, material,
+                gui.getString("order-dialog.amount.initial", "1"),
+                gui.getString("order-dialog.price.initial", "")));
     }
 
-    @SuppressWarnings("deprecation")
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onChat(AsyncPlayerChatEvent event) {
-        Draft draft = drafts.get(event.getPlayer().getUniqueId());
-        if (draft == null) return;
-        event.setCancelled(true);
-        String input = event.getMessage().trim();
-        Bukkit.getScheduler().runTask(this, () -> handleDraftInput(event.getPlayer(), input));
+    private void openOrderDialog(Player player, Material material, String initialAmount, String initialPrice) {
+        Map<String, String> variables = Map.of("item", nice(material));
+        int inputWidth = Math.max(1, Math.min(1024, gui.getInt("order-dialog.input-width", 300)));
+        int buttonWidth = Math.max(1, Math.min(1024, gui.getInt("order-dialog.button-width", 150)));
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+                .base(DialogBase.builder(component(replace(gui.getString("order-dialog.title",
+                                "&#d9a441&lCREATE %item% ORDER"), variables)))
+                        .canCloseWithEscape(true)
+                        .inputs(List.of(
+                                DialogInput.text("amount", component(gui.getString("order-dialog.amount.label", "&fAmount")))
+                                        .width(inputWidth)
+                                        .initial(initialAmount == null ? "" : initialAmount)
+                                        .maxLength(10)
+                                        .build(),
+                                DialogInput.text("price", component(gui.getString("order-dialog.price.label", "&fPrice per item")))
+                                        .width(inputWidth)
+                                        .initial(initialPrice == null ? "" : initialPrice)
+                                        .maxLength(32)
+                                        .build()
+                        ))
+                        .build())
+                .type(DialogType.confirmation(
+                        ActionButton.create(
+                                component(gui.getString("order-dialog.confirm.name", "&#62dc91&lCREATE ORDER")),
+                                component(gui.getString("order-dialog.confirm.tooltip", "&fCreate this order.")),
+                                buttonWidth,
+                                DialogAction.customClick((response, audience) -> {
+                                    if (!(audience instanceof Player target)) return;
+                                    String amount = response.getText("amount");
+                                    String price = response.getText("price");
+                                    Bukkit.getScheduler().runTask(this, () -> handleOrderDialogInput(
+                                            target, material, amount == null ? "" : amount, price == null ? "" : price));
+                                }, singleUseCallback())
+                        ),
+                        ActionButton.create(
+                                component(gui.getString("order-dialog.cancel.name", "&#e3262e&lCANCEL")),
+                                component(gui.getString("order-dialog.cancel.tooltip", "&fCancel this order.")),
+                                buttonWidth,
+                                DialogAction.customClick((response, audience) -> {
+                                    if (audience instanceof Player target) {
+                                        Bukkit.getScheduler().runTask(this,
+                                                () -> message(target, "builder-cancelled", Map.of()));
+                                    }
+                                }, singleUseCallback())
+                        )
+                )));
+        player.showDialog(dialog);
     }
 
-    private void handleDraftInput(Player player, String input) {
-        Draft draft = drafts.get(player.getUniqueId());
-        if (draft == null) return;
-        if (input.equalsIgnoreCase("cancel")) {
-            drafts.remove(player.getUniqueId());
-            message(player, "builder-cancelled", Map.of());
-            return;
-        }
-        if (draft.step() == DraftStep.AMOUNT) {
-            try {
-                int amount = Integer.parseInt(input);
-                if (amount < 1) throw new NumberFormatException();
-                drafts.put(player.getUniqueId(), new Draft(draft.material(), DraftStep.PRICE, amount));
-                message(player, "builder-price", Map.of("amount", String.valueOf(amount), "item", nice(draft.material())));
-            } catch (NumberFormatException exception) {
-                message(player, "builder-invalid-amount", Map.of());
-            }
-            return;
-        }
+    private ClickCallback.Options singleUseCallback() {
+        return ClickCallback.Options.builder().uses(1).build();
+    }
+
+    private void handleOrderDialogInput(Player player, Material material, String amountInput, String priceInput) {
+        int amount;
         try {
-            double price = Double.parseDouble(input.replace(',', '.'));
+            amount = Integer.parseInt(amountInput.trim());
+            if (amount < 1) throw new NumberFormatException();
+        } catch (NumberFormatException exception) {
+            message(player, "builder-invalid-amount", Map.of());
+            openOrderDialog(player, material, amountInput, priceInput);
+            return;
+        }
+
+        double price;
+        try {
+            price = Double.parseDouble(priceInput.trim().replace(',', '.'));
             if (!Double.isFinite(price) || price <= 0) throw new NumberFormatException();
-            drafts.remove(player.getUniqueId());
-            createOrder(player, draft.material(), draft.amount(), price);
         } catch (NumberFormatException exception) {
             message(player, "builder-invalid-price", Map.of());
+            openOrderDialog(player, material, amountInput, priceInput);
+            return;
         }
+        createOrder(player, material, amount, price);
     }
 
     @EventHandler
@@ -812,6 +860,10 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         return ChatColor.translateAlternateColorCodes('&', output.toString());
     }
 
+    private Component component(String input) {
+        return LEGACY_COMPONENTS.deserialize(color(input));
+    }
+
     private void message(CommandSender sender, String key, Map<String, String> variables) {
         String configured = getConfig().getString("messages." + key, "");
         String prefix = getConfig().getString("messages.prefix", "");
@@ -895,9 +947,6 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     }
 
     private record Order(String id, UUID buyer, Material item, int total, int remaining, double price) { }
-    private record Draft(Material material, DraftStep step, int amount) { }
-    private enum DraftStep { AMOUNT, PRICE }
-
     private record ListHolder(int page, String scope, String query, String sort) implements InventoryHolder {
         @Override public Inventory getInventory() { return null; }
     }
