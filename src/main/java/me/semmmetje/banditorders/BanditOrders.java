@@ -186,7 +186,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "create" -> { return createFromCommand(player, args); }
-            case "delete" -> { return deleteOrder(player, args); }
+            case "cancel", "delete" -> { return cancelOrderFromCommand(player, args); }
             case "search" -> {
                 if (args.length == 2) {
                     String query = args[1].equalsIgnoreCase("hand")
@@ -366,25 +366,44 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         return highest >= 0 ? highest : Math.max(0, getConfig().getInt("max-orders-per-player", 10));
     }
 
-    private boolean deleteOrder(Player player, String[] args) {
+    private boolean cancelOrderFromCommand(Player player, String[] args) {
         if (args.length != 2) {
-            message(player, "delete-usage", Map.of());
+            message(player, "cancel-usage", Map.of());
             return true;
         }
-        Order order = orders.get(args[1]);
+        cancelOrder(player, args[1]);
+        return true;
+    }
+
+    private boolean cancelOrder(Player player, String id) {
+        Order order = orders.get(id);
         if (order == null || !order.buyer().equals(player.getUniqueId())) {
-            message(player, "order-not-found", Map.of());
-            return true;
+            message(player, "order-not-found", Map.of("id", id));
+            return false;
+        }
+        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAmount).sum();
+        if (storedItems > 0 || collectionLocks.contains(order.id())) {
+            message(player, "cancel-storage-not-empty", Map.of(
+                    "id", order.id(),
+                    "amount", String.valueOf(storedItems)
+            ));
+            return false;
         }
         double refund = order.remaining() * order.price();
-        if (economy == null || !economy.depositPlayer(player, refund).transactionSuccess()) {
-            message(player, "refund-failed", Map.of());
-            return true;
+        if (refund > 0 && (economy == null || !economy.depositPlayer(player, refund).transactionSuccess())) {
+            message(player, "refund-failed", Map.of("id", order.id()));
+            return false;
         }
         orders.remove(order.id());
         stored.remove(order.id());
         saveOrders();
-        message(player, "deleted", Map.of("money", money(refund)));
+        message(player, "cancelled", Map.of(
+                "id", order.id(),
+                "item", nice(order.item()),
+                "amount", String.valueOf(order.remaining()),
+                "refund", money(refund),
+                "money", money(refund)
+        ));
         return true;
     }
 
@@ -449,7 +468,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                     "&7Price each: &#d9a441%price%",
                     "&7Remaining value: &#d9a441%total_price%",
                     "",
-                    "&#55b7ff→ Click to open storage"
+                    "&#55b7ff→ Click to open storage",
+                    "&#e3262e→ Shift-click to cancel"
             )), variables));
             if (player.hasPermission("banditorders.admin")) {
                 lore.addAll(replace(configuredLore("my-orders.admin-lore", List.of(
@@ -745,6 +765,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         if ((click == ClickType.DROP || click == ClickType.CONTROL_DROP)
                 && player.hasPermission("banditorders.admin")) {
             if (adminDeleteOrder(player, order.id())) {
+                Bukkit.getScheduler().runTask(this,
+                        () -> openMyOrders(player, holder.page(), holder.sort()));
+            }
+            return;
+        }
+        if (click.isShiftClick()) {
+            if (cancelOrder(player, order.id())) {
                 Bukkit.getScheduler().runTask(this,
                         () -> openMyOrders(player, holder.page(), holder.sort()));
             }
@@ -1105,14 +1132,14 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
         if (!(sender instanceof Player player) || !player.hasPermission("banditorders.use")) return List.of();
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("create", "delete", "search", "filter", "mine"));
+            List<String> options = new ArrayList<>(List.of("create", "cancel", "delete", "search", "filter", "mine"));
             if (player.hasPermission("banditorders.admin")) options.add("admin");
             return matches(args[0], options);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("filter")) {
             return matches(args[1], List.of("newest", "oldest", "price-desc", "price-asc"));
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("delete")) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("cancel") || args[0].equalsIgnoreCase("delete"))) {
             List<String> ownIds = orders.values().stream()
                     .filter(order -> order.buyer().equals(player.getUniqueId()))
                     .map(Order::id)

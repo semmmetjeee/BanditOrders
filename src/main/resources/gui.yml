@@ -104,6 +104,7 @@ my-orders:
     - "&7Remaining value: &#d9a441%total_price%"
     - ""
     - "&#55b7ff→ Click to open storage"
+    - "&#e3262e→ Shift-click to cancel"
   admin-lore:
     - ""
     - "&#e3262eQ → Admin-delete this order"

@@ -4,10 +4,14 @@ max-orders-per-player: 10
 messages:
   prefix: "&#d9a441&lORDERS &8» &f"
   no-permission: "%prefix%&cYou do not have permission to use orders."
-  usage: "%prefix%&7Use &f/orders&7, &f/orders mine&7 or &f/orders create <item|hand> <amount> <price>&7."
+  usage: "%prefix%&7Use &f/orders&7, &f/orders mine&7, &f/orders cancel <id>&7 or &f/orders create <item|hand> <amount> <price>&7."
   no-economy: "%prefix%&cVault and an economy provider are required."
   invalid: "%prefix%&cUsage: /orders create <item|hand> <amount> <price per item>"
   created: "%prefix%&aCreated an order for &#d9a441%amount%x %item% &aat &#d9a441%price% &aeach."
+  cancelled: "%prefix%&aCancelled order &#d9a441%id% &aand refunded &#d9a441%refund%&a."
+  cancel-usage: "%prefix%&cUsage: /orders cancel <order-id>"
+  cancel-storage-not-empty: "%prefix%&cCollect the &#d9a441%amount% &cdelivered items from this order before cancelling it."
+  # Legacy keys kept for servers that still use /orders delete.
   deleted: "%prefix%&aYour order was cancelled and &#d9a441%money% &awas refunded."
   delete-usage: "%prefix%&cUsage: /orders delete <order-id>"
   order-not-found: "%prefix%&cOrder not found."
