@@ -4,21 +4,21 @@
 
 border:
   enabled: true
-  material: GRAY_STAINED_GLASS_PANE
+  material: BLACK_STAINED_GLASS_PANE
   name: " "
   lore: []
   glow: false
 
 list:
   size: 54
-  title: "&rMarket Orders"
+  title: "&#d9a441&lMARKET ORDERS"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#d9a441%item%"
   order-lore:
-    - "&7Buyer: &f%buyer%"
-    - "&7Wanted: &f%remaining%&7/&f%total%"
-    - "&7Price each: &f%price%"
-    - "&7Remaining value: &f%total_price%"
+    - "&7Buyer: &#d9a441%buyer%"
+    - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
+    - "&7Price each: &#d9a441%price%"
+    - "&7Remaining value: &#d9a441%total_price%"
     - ""
     - "&#d9a441→ Click to deliver items"
   # Only shown to players with banditorders.admin. The Q action is bound to
@@ -95,7 +95,7 @@ list:
 # Its clicks use this menu's holder and configured slots, not names or lore.
 my-orders:
   size: 54
-  title: "&rYour Orders"
+  title: "&#55b7ff&lYOUR ORDERS"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#55b7ff%item%"
   order-lore:
@@ -157,7 +157,7 @@ my-orders:
 # After choosing an item, a native Minecraft dialog asks for amount and price.
 selection:
   size: 54
-  title: "&rSelect an Item"
+  title: "&#d9a441&lSELECT AN ITEM"
   # Slots 0-44 provide 45 items per page. The bottom row contains navigation.
   content-slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
   border:
@@ -195,7 +195,7 @@ selection:
 # Native Paper/Minecraft input dialog. Actions are callback-based and therefore
 # keep working when any title, label, button name or tooltip is changed.
 order-dialog:
-  title: "&rCreate %item% Order"
+  title: "&#d9a441&lCREATE %item% ORDER"
   input-width: 300
   button-width: 150
   amount:
@@ -213,7 +213,7 @@ order-dialog:
 
 delivery:
   size: 27
-  title: "&rDeliver Order"
+  title: "&#d9a441&lDELIVER ORDER"
   # Only these slots accept delivered items. Panes, info and buttons are protected.
   input-slots: [10, 11, 12, 13, 14, 15, 16]
   info:
@@ -239,7 +239,7 @@ delivery:
 
 storage:
   size: 54
-  title: "&rOrder Storage &8(%page%/%pages%)"
+  title: "&#d9a441&lORDER STORAGE &8(%page%/%pages%)"
   # Only these slots are saved as storage. Border panes and buttons never are.
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   buttons:
