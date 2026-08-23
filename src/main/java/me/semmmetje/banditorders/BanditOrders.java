@@ -202,7 +202,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 }
             }
             case "mine", "my", "own" -> {
-                openOrders(player, 0, "mine", "", "newest");
+                openMyOrders(player, 0, "newest");
                 return true;
             }
             case "admin" -> {
@@ -426,6 +426,59 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         player.openInventory(inventory);
     }
 
+    private void openMyOrders(Player player, int requestedPage, String sort) {
+        int inventorySize = inventorySize("my-orders.size", 54);
+        int[] contentSlots = slots("my-orders.content-slots", defaultOrderSlots(), inventorySize);
+        List<Order> visible = filtered("mine", "", sort, player.getUniqueId());
+        int pageCount = Math.max(1, (visible.size() + contentSlots.length - 1) / contentSlots.length);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Inventory inventory = Bukkit.createInventory(new MyOrdersHolder(page, sort), inventorySize,
+                color(gui.getString("my-orders.title", "&#55b7ff&lYOUR ORDERS")));
+        border(inventory);
+
+        int from = page * contentSlots.length;
+        for (int index = 0; index < contentSlots.length && from + index < visible.size(); index++) {
+            Order order = visible.get(from + index);
+            Map<String, String> variables = variables(order);
+            List<String> lore = new ArrayList<>(replace(configuredLore("my-orders.order-lore", List.of(
+                    "&7Wanted: &#d9a441%remaining%&7/&f%total%",
+                    "&7Price each: &#d9a441%price%",
+                    "&7Remaining value: &#d9a441%total_price%",
+                    "",
+                    "&#55b7ff→ Click to open storage"
+            )), variables));
+            if (player.hasPermission("banditorders.admin")) {
+                lore.addAll(replace(configuredLore("my-orders.admin-lore", List.of(
+                        "",
+                        "&cQ → Admin-delete this order",
+                        "&8Order ID: %id%"
+                )), variables));
+            }
+            inventory.setItem(contentSlots[index], item(
+                    order.item(),
+                    replace(gui.getString("my-orders.order-name", "&#55b7ff%item%"), variables),
+                    lore,
+                    null,
+                    false
+            ));
+        }
+
+        if (visible.isEmpty()) {
+            putButton(inventory, "my-orders.empty", 22, Material.BARRIER, "&cNo orders found",
+                    List.of("&7You do not have any orders yet.", "", "&#d9a441→ Create one from the orders menu"), Map.of());
+        }
+        putButton(inventory, "my-orders.sort", 4, Material.HOPPER, "&#55b7ff&lSORT: &f%sort%",
+                List.of("&7Current: &f%sort%", "&7Next: &f%next_sort%", "", "&#55b7ff→ Click to change"),
+                Map.of("sort", sortName(sort), "next_sort", sortName(nextSort(sort))));
+        putButton(inventory, "my-orders.buttons.previous", 45, Material.ARROW, "&fPrevious page",
+                List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
+        putButton(inventory, "my-orders.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+                List.of("&7Return to all market orders.", "", "&#d9a441→ Click to go back"), Map.of());
+        putButton(inventory, "my-orders.buttons.next", 53, Material.ARROW, "&fNext page",
+                List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
+        player.openInventory(inventory);
+    }
+
     private void openItemSelector(Player player, int requestedPage) {
         int inventorySize = inventorySize("selection.size", 54);
         int[] contentSlots = slots("selection.content-slots", defaultSelectionSlots(), inventorySize);
@@ -489,6 +542,12 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             handleListClick(player, event.getRawSlot(), listHolder, event.getClick());
             return;
         }
+        if (holder instanceof MyOrdersHolder myOrdersHolder) {
+            event.setCancelled(true);
+            if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) return;
+            handleMyOrdersClick(player, event.getRawSlot(), myOrdersHolder, event.getClick());
+            return;
+        }
         if (holder instanceof SelectionHolder selectionHolder) {
             event.setCancelled(true);
             if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) return;
@@ -520,7 +579,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             return;
         }
         if (buttonClicked("list.buttons.your-orders", slot, 49, size)) {
-            openOrders(player, 0, "mine", "", holder.sort());
+            openMyOrders(player, 0, "newest");
             return;
         }
         if (buttonClicked("list.buttons.back", slot, 50, size)) {
@@ -546,6 +605,41 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
         if (order.buyer().equals(player.getUniqueId())) openCollection(player, order);
         else if (order.remaining() > 0) openDelivery(player, order);
+    }
+
+    private void handleMyOrdersClick(Player player, int slot, MyOrdersHolder holder, ClickType click) {
+        int size = inventorySize("my-orders.size", 54);
+        if (buttonClicked("my-orders.sort", slot, 4, size)) {
+            openMyOrders(player, 0, nextSort(holder.sort()));
+            return;
+        }
+        if (buttonClicked("my-orders.buttons.previous", slot, 45, size)) {
+            if (holder.page() > 0) openMyOrders(player, holder.page() - 1, holder.sort());
+            return;
+        }
+        if (buttonClicked("my-orders.buttons.next", slot, 53, size)) {
+            openMyOrders(player, holder.page() + 1, holder.sort());
+            return;
+        }
+        if (buttonClicked("my-orders.buttons.back", slot, 49, size)) {
+            openOrders(player, 0, "all", "", "newest");
+            return;
+        }
+        int[] contentSlots = slots("my-orders.content-slots", defaultOrderSlots(), size);
+        int index = indexOf(contentSlots, slot);
+        List<Order> visible = filtered("mine", "", holder.sort(), player.getUniqueId());
+        int orderIndex = holder.page() * contentSlots.length + index;
+        if (index < 0 || orderIndex < 0 || orderIndex >= visible.size()) return;
+        Order order = visible.get(orderIndex);
+        if ((click == ClickType.DROP || click == ClickType.CONTROL_DROP)
+                && player.hasPermission("banditorders.admin")) {
+            if (adminDeleteOrder(player, order.id())) {
+                Bukkit.getScheduler().runTask(this,
+                        () -> openMyOrders(player, holder.page(), holder.sort()));
+            }
+            return;
+        }
+        openCollection(player, order);
     }
 
     private void handleSelectionClick(Player player, int slot, SelectionHolder holder) {
@@ -948,6 +1042,10 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
     private record Order(String id, UUID buyer, Material item, int total, int remaining, double price) { }
     private record ListHolder(int page, String scope, String query, String sort) implements InventoryHolder {
+        @Override public Inventory getInventory() { return null; }
+    }
+
+    private record MyOrdersHolder(int page, String sort) implements InventoryHolder {
         @Override public Inventory getInventory() { return null; }
     }
 

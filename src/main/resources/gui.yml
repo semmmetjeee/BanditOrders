@@ -91,6 +91,67 @@ list:
       lore:
         - "&7Go to page %page%."
 
+# Completely separate menu opened by Your Orders and /orders mine.
+# Its clicks use this menu's holder and configured slots, not names or lore.
+my-orders:
+  size: 54
+  title: "&#55b7ff&lYOUR ORDERS"
+  content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
+  order-name: "&#55b7ff%item%"
+  order-lore:
+    - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
+    - "&7Price each: &#d9a441%price%"
+    - "&7Remaining value: &#d9a441%total_price%"
+    - ""
+    - "&#55b7ff→ Click to open storage"
+  admin-lore:
+    - ""
+    - "&#e3262eQ → Admin-delete this order"
+    - "&8Order ID: %id%"
+  sort:
+    enabled: true
+    slot: 4
+    material: HOPPER
+    name: "&#55b7ff&lSORT: &f%sort%"
+    lore:
+      - "&7Current: &f%sort%"
+      - "&7Next: &f%next_sort%"
+      - ""
+      - "&#55b7ff→ Click to change"
+  empty:
+    enabled: true
+    slot: 22
+    material: BARRIER
+    name: "&#e3262e&lNO ORDERS FOUND"
+    lore:
+      - "&7You do not have any orders yet."
+      - ""
+      - "&#d9a441→ Create one from the orders menu"
+  buttons:
+    previous:
+      enabled: true
+      slot: 45
+      material: ARROW
+      name: "&fPrevious page"
+      lore:
+        - "&7Go to page %page%."
+    back:
+      enabled: true
+      slot: 49
+      material: OAK_DOOR
+      name: "&#d9a441&lBACK TO ORDERS"
+      lore:
+        - "&7Return to all market orders."
+        - ""
+        - "&#d9a441→ Click to go back"
+    next:
+      enabled: true
+      slot: 53
+      material: ARROW
+      name: "&fNext page"
+      lore:
+        - "&7Go to page %page%."
+
 # Clicking New Order opens every usable Minecraft item across multiple pages.
 # After choosing an item, a native Minecraft dialog asks for amount and price.
 selection:
