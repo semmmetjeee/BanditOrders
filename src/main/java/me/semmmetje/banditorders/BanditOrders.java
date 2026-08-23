@@ -131,10 +131,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         for (String id : data.getKeys(false)) {
             if (id.equals("storage") || !data.contains(id + ".buyer")) continue;
             try {
+                Material material = Material.valueOf(Objects.requireNonNull(data.getString(id + ".item")));
+                ItemStack template = data.getItemStack(id + ".template");
+                if (template == null || template.getType().isAir()) template = new ItemStack(material);
                 orders.put(id, new Order(
                         id,
                         UUID.fromString(Objects.requireNonNull(data.getString(id + ".buyer"))),
-                        Material.valueOf(Objects.requireNonNull(data.getString(id + ".item"))),
+                        template,
                         data.getInt(id + ".total"),
                         data.getInt(id + ".remaining"),
                         data.getDouble(id + ".price")
@@ -159,6 +162,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             String path = order.id();
             data.set(path + ".buyer", order.buyer().toString());
             data.set(path + ".item", order.item().name());
+            data.set(path + ".template", order.template());
             data.set(path + ".total", order.total());
             data.set(path + ".remaining", order.remaining());
             data.set(path + ".price", order.price());
@@ -290,9 +294,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             message(player, "invalid", Map.of());
             return true;
         }
-        Material material = args[1].equalsIgnoreCase("hand")
-                ? player.getInventory().getItemInMainHand().getType()
-                : Material.matchMaterial(args[1].toUpperCase(Locale.ROOT));
+        ItemStack template;
+        if (args[1].equalsIgnoreCase("hand")) {
+            template = player.getInventory().getItemInMainHand().clone();
+        } else {
+            Material material = Material.matchMaterial(args[1].toUpperCase(Locale.ROOT));
+            template = material == null ? null : new ItemStack(material);
+        }
         int amount;
         double price;
         try {
@@ -302,15 +310,20 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             message(player, "invalid", Map.of());
             return true;
         }
-        createOrder(player, material, amount, price);
+        createOrder(player, template, amount, price);
         return true;
     }
 
     private boolean createOrder(Player player, Material material, int amount, double price) {
+        return createOrder(player, material == null ? null : new ItemStack(material), amount, price);
+    }
+
+    private boolean createOrder(Player player, ItemStack template, int amount, double price) {
         if (economy == null) {
             message(player, "no-economy", Map.of());
             return false;
         }
+        Material material = template == null ? null : template.getType();
         if (material == null || material.isAir() || !material.isItem() || amount < 1 || !Double.isFinite(price) || price <= 0) {
             message(player, "invalid", Map.of());
             return false;
@@ -332,12 +345,12 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             return false;
         }
 
-        Order order = new Order(UUID.randomUUID().toString().substring(0, 8), player.getUniqueId(), material, amount, amount, price);
+        Order order = new Order(UUID.randomUUID().toString().substring(0, 8), player.getUniqueId(), template, amount, amount, price);
         orders.put(order.id(), order);
         saveOrders();
         message(player, "created", Map.of(
                 "amount", String.valueOf(amount),
-                "item", nice(material),
+                "item", orderName(order),
                 "price", money(price),
                 "total", money(totalPrice)
         ));
@@ -399,7 +412,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         saveOrders();
         message(player, "cancelled", Map.of(
                 "id", order.id(),
-                "item", nice(order.item()),
+                "item", orderName(order),
                 "amount", String.valueOf(order.remaining()),
                 "refund", money(refund),
                 "money", money(refund)
@@ -430,7 +443,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 )), variables));
             }
             inventory.setItem(contentSlots[index], item(
-                    order.item(),
+                    order.template(),
                     replace(gui.getString("list.order-name", "&#d9a441%item%"), variables),
                     lore,
                     null,
@@ -479,7 +492,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 )), variables));
             }
             inventory.setItem(contentSlots[index], item(
-                    order.item(),
+                    order.template(),
                     replace(gui.getString("my-orders.order-name", "&#55b7ff%item%"), variables),
                     lore,
                     null,
@@ -926,7 +939,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
         for (int slot : inputSlots) {
             ItemStack stack = inventory.getItem(slot);
-            if (stack == null || stack.getType().isAir() || stack.getType() != order.item() || delivered >= order.remaining()) continue;
+            if (stack == null || stack.getType().isAir() || !stack.isSimilar(order.template()) || delivered >= order.remaining()) continue;
             int taken = Math.min(stack.getAmount(), order.remaining() - delivered);
             ItemStack copy = stack.clone();
             copy.setAmount(taken);
@@ -946,9 +959,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
 
         stored.computeIfAbsent(order.id(), ignored -> new ArrayList<>()).addAll(deposited);
-        orders.put(order.id(), new Order(order.id(), order.buyer(), order.item(), order.total(), order.remaining() - delivered, order.price()));
+        orders.put(order.id(), new Order(order.id(), order.buyer(), order.template(), order.total(), order.remaining() - delivered, order.price()));
         saveOrders();
-        message(player, "paid", Map.of("amount", String.valueOf(delivered), "item", nice(order.item()), "money", money(payment)));
+        message(player, "paid", Map.of("amount", String.valueOf(delivered), "item", orderName(order), "money", money(payment)));
     }
 
     private void returnInputs(Player player, Inventory inventory, Collection<Integer> slots) {
@@ -1049,7 +1062,12 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     }
 
     private ItemStack item(Material material, String name, List<String> lore, Integer customModelData, boolean glow) {
-        ItemStack stack = new ItemStack(material);
+        return item(new ItemStack(material), name, lore, customModelData, glow);
+    }
+
+    private ItemStack item(ItemStack template, String name, List<String> lore, Integer customModelData, boolean glow) {
+        ItemStack stack = template.clone();
+        stack.setAmount(1);
         ItemMeta meta = stack.getItemMeta();
         meta.setDisplayName(color(name));
         meta.setLore(lore.stream().map(this::color).toList());
@@ -1067,7 +1085,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         String buyer = Bukkit.getOfflinePlayer(order.buyer()).getName();
         return Map.of(
                 "id", order.id(),
-                "item", nice(order.item()),
+                "item", orderName(order),
                 "buyer", buyer == null ? "Unknown" : buyer,
                 "remaining", String.valueOf(order.remaining()),
                 "total", String.valueOf(order.total()),
@@ -1091,6 +1109,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 .map(part -> part.substring(0, 1) + part.substring(1).toLowerCase(Locale.ROOT))
                 .reduce((first, second) -> first + " " + second)
                 .orElse(material.name());
+    }
+
+    private String orderName(Order order) {
+        ItemStack template = order.template();
+        ItemMeta meta = template.getItemMeta();
+        if (meta != null && meta.hasDisplayName() && !meta.getDisplayName().isBlank()) return meta.getDisplayName();
+        return nice(template.getType());
     }
 
     private String money(double value) {
@@ -1196,7 +1221,15 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         return result;
     }
 
-    private record Order(String id, UUID buyer, Material item, int total, int remaining, double price) { }
+    private record Order(String id, UUID buyer, ItemStack template, int total, int remaining, double price) {
+        private Order {
+            template = template.clone();
+            template.setAmount(1);
+        }
+
+        @Override public ItemStack template() { return template.clone(); }
+        private Material item() { return template.getType(); }
+    }
     private record ListHolder(int page, String scope, String query, String sort) implements InventoryHolder {
         @Override public Inventory getInventory() { return null; }
     }
