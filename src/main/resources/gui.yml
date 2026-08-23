@@ -211,6 +211,7 @@ order-dialog:
 delivery:
   size: 27
   title: "&#d9a441&lDELIVER ORDER"
+  # Only these slots accept delivered items. Panes, info and buttons are protected.
   input-slots: [10, 11, 12, 13, 14, 15, 16]
   info:
     slot: 4
@@ -221,7 +222,44 @@ delivery:
       - "&7They are paid when you close the menu."
       - "&7Remaining: &#d9a441%remaining%"
       - "&7Price each: &#d9a441%price%"
+  buttons:
+    back:
+      enabled: true
+      slot: 22
+      material: OAK_DOOR
+      name: "&#d9a441&lBACK TO ORDERS"
+      lore:
+        - "&7Cancel this delivery and return"
+        - "&7all inserted items."
+        - ""
+        - "&#d9a441→ Click to go back"
 
 storage:
   size: 54
-  title: "&#d9a441&lORDER STORAGE"
+  title: "&#d9a441&lORDER STORAGE &8(%page%/%pages%)"
+  # Only these slots are saved as storage. Border panes and buttons never are.
+  content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
+  buttons:
+    previous:
+      enabled: true
+      slot: 45
+      material: ARROW
+      name: "&fPrevious page"
+      lore:
+        - "&7Go to page %page%."
+    back:
+      enabled: true
+      slot: 49
+      material: OAK_DOOR
+      name: "&#d9a441&lBACK TO ORDERS"
+      lore:
+        - "&7Return to the orders menu."
+        - ""
+        - "&#d9a441→ Click to go back"
+    next:
+      enabled: true
+      slot: 53
+      material: ARROW
+      name: "&fNext page"
+      lore:
+        - "&7Go to page %page%."

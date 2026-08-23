@@ -26,6 +26,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -340,6 +341,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 "price", money(price),
                 "total", money(totalPrice)
         ));
+        Bukkit.getScheduler().runTask(this, () -> {
+            if (player.isOnline()) openOrders(player, 0, "all", "", "newest");
+        });
         return true;
     }
 
@@ -508,11 +512,36 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             message(player, "storage-locked", Map.of());
             return;
         }
-        Inventory inventory = Bukkit.createInventory(new CollectionHolder(order.id()), inventorySize("storage.size", 54),
-                color(gui.getString("storage.title", "&#d9a441&lORDER STORAGE")));
-        for (ItemStack stack : stored.getOrDefault(order.id(), List.of())) {
-            Map<Integer, ItemStack> leftovers = inventory.addItem(stack.clone());
-            if (!leftovers.isEmpty()) getLogger().warning("Storage for order " + order.id() + " is larger than its menu.");
+        openCollectionPage(player, order, 0);
+    }
+
+    private void openCollectionPage(Player player, Order order, int requestedPage) {
+        int inventorySize = inventorySize("storage.size", 54);
+        int[] contentSlots = slots("storage.content-slots", defaultOrderSlots(), inventorySize);
+        List<ItemStack> contents = stored.getOrDefault(order.id(), List.of());
+        int pageCount = Math.max(1, (contents.size() + contentSlots.length - 1) / contentSlots.length);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Map<String, String> variables = new HashMap<>(variables(order));
+        variables.put("page", String.valueOf(page + 1));
+        variables.put("pages", String.valueOf(pageCount));
+
+        Inventory inventory = Bukkit.createInventory(new CollectionHolder(order.id(), page), inventorySize,
+                color(replace(gui.getString("storage.title", "&#d9a441&lORDER STORAGE &8(%page%/%pages%)"), variables)));
+        border(inventory);
+        int from = page * contentSlots.length;
+        for (int index = 0; index < contentSlots.length && from + index < contents.size(); index++) {
+            ItemStack stack = contents.get(from + index);
+            if (stack != null && !stack.getType().isAir()) inventory.setItem(contentSlots[index], stack.clone());
+        }
+        if (page > 0) {
+            putButton(inventory, "storage.buttons.previous", 45, Material.ARROW, "&fPrevious page",
+                    List.of("&7Go to page %page%."), Map.of("page", String.valueOf(page)));
+        }
+        putButton(inventory, "storage.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+                List.of("&7Return to the orders menu.", "", "&#d9a441→ Click to go back"), Map.of());
+        if (page + 1 < pageCount) {
+            putButton(inventory, "storage.buttons.next", 53, Material.ARROW, "&fNext page",
+                    List.of("&7Go to page %page%."), Map.of("page", String.valueOf(page + 2)));
         }
         player.openInventory(inventory);
     }
@@ -527,6 +556,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         inventory.setItem(infoSlot, configuredItem("delivery.info", order.item(), "&#d9a441&l%item%",
                 List.of("&7Place matching items in the slots.", "&7They are paid when you close the menu.", "&7Remaining: &#d9a441%remaining%"), variables));
         for (int inputSlot : slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), inventorySize)) inventory.setItem(inputSlot, null);
+        putButton(inventory, "delivery.buttons.back", 22, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+                List.of("&7Cancel this delivery and return", "&7all inserted items.", "", "&#d9a441→ Click to go back"), Map.of());
         player.openInventory(inventory);
     }
 
@@ -554,9 +585,88 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             handleSelectionClick(player, event.getRawSlot(), selectionHolder);
             return;
         }
-        if (holder instanceof DeliveryHolder && event.getRawSlot() >= 0 && event.getRawSlot() < top.getSize()) {
+        if (holder instanceof CollectionHolder collectionHolder) {
+            handleCollectionClick(event, player, top, collectionHolder);
+            return;
+        }
+        if (holder instanceof DeliveryHolder deliveryHolder) {
+            if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) {
+                if (event.getClick() == ClickType.DOUBLE_CLICK) event.setCancelled(true);
+                return;
+            }
             Set<Integer> inputs = asSet(slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), top.getSize()));
+            if (buttonClicked("delivery.buttons.back", event.getRawSlot(), 22, top.getSize())) {
+                event.setCancelled(true);
+                deliveryHolder.switching = true;
+                returnInputs(player, top, inputs);
+                openOrders(player, 0, "all", "", "newest");
+                return;
+            }
             if (!inputs.contains(event.getRawSlot())) event.setCancelled(true);
+        }
+    }
+
+    private void handleCollectionClick(InventoryClickEvent event, Player player, Inventory inventory, CollectionHolder holder) {
+        int rawSlot = event.getRawSlot();
+        if (rawSlot < 0 || rawSlot >= inventory.getSize()) {
+            if (event.getClick() == ClickType.DOUBLE_CLICK) event.setCancelled(true);
+            return;
+        }
+        int[] contentSlots = slots("storage.content-slots", defaultOrderSlots(), inventory.getSize());
+
+        if (holder.page > 0 && buttonClicked("storage.buttons.previous", rawSlot, 45, inventory.getSize())) {
+            event.setCancelled(true);
+            switchCollectionPage(player, inventory, holder, holder.page - 1);
+            return;
+        }
+        if (buttonClicked("storage.buttons.back", rawSlot, 49, inventory.getSize())) {
+            event.setCancelled(true);
+            holder.switching = true;
+            saveCollectionPage(inventory, holder);
+            collectionLocks.remove(holder.orderId);
+            openOrders(player, 0, "all", "", "newest");
+            return;
+        }
+        int pageCount = Math.max(1, (stored.getOrDefault(holder.orderId, List.of()).size() + contentSlots.length - 1) / contentSlots.length);
+        if (holder.page + 1 < pageCount && buttonClicked("storage.buttons.next", rawSlot, 53, inventory.getSize())) {
+            event.setCancelled(true);
+            switchCollectionPage(player, inventory, holder, holder.page + 1);
+            return;
+        }
+        if (indexOf(contentSlots, rawSlot) < 0) event.setCancelled(true);
+    }
+
+    private void switchCollectionPage(Player player, Inventory inventory, CollectionHolder holder, int page) {
+        holder.switching = true;
+        saveCollectionPage(inventory, holder);
+        Order order = orders.get(holder.orderId);
+        if (order == null) {
+            collectionLocks.remove(holder.orderId);
+            openOrders(player, 0, "all", "", "newest");
+            return;
+        }
+        openCollectionPage(player, order, page);
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        InventoryHolder holder = top.getHolder();
+        Set<Integer> allowed;
+        if (holder instanceof CollectionHolder) {
+            allowed = asSet(slots("storage.content-slots", defaultOrderSlots(), top.getSize()));
+        } else if (holder instanceof DeliveryHolder) {
+            allowed = asSet(slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), top.getSize()));
+        } else if (holder instanceof ListHolder || holder instanceof MyOrdersHolder || holder instanceof SelectionHolder) {
+            allowed = Set.of();
+        } else {
+            return;
+        }
+        for (int rawSlot : event.getRawSlots()) {
+            if (rawSlot < top.getSize() && !allowed.contains(rawSlot)) {
+                event.setCancelled(true);
+                return;
+            }
         }
     }
 
@@ -745,17 +855,32 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof CollectionHolder holder) {
-            List<ItemStack> remainingItems = new ArrayList<>();
-            for (ItemStack stack : event.getInventory().getContents()) {
-                if (stack != null && !stack.getType().isAir()) remainingItems.add(stack.clone());
+            if (!holder.switching) {
+                saveCollectionPage(event.getInventory(), holder);
+                collectionLocks.remove(holder.orderId);
             }
-            stored.put(holder.orderId(), remainingItems);
-            collectionLocks.remove(holder.orderId());
-            saveOrders();
             return;
         }
         if (!(event.getInventory().getHolder() instanceof DeliveryHolder holder) || !(event.getPlayer() instanceof Player player)) return;
+        if (holder.switching) return;
         finishDelivery(player, event.getInventory(), holder.orderId());
+    }
+
+    private void saveCollectionPage(Inventory inventory, CollectionHolder holder) {
+        int[] contentSlots = slots("storage.content-slots", defaultOrderSlots(), inventory.getSize());
+        List<ItemStack> visibleItems = new ArrayList<>();
+        for (int slot : contentSlots) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack != null && !stack.getType().isAir()) visibleItems.add(stack.clone());
+        }
+
+        List<ItemStack> allItems = new ArrayList<>(stored.getOrDefault(holder.orderId, List.of()));
+        int from = Math.min(holder.page * contentSlots.length, allItems.size());
+        int to = Math.min(from + contentSlots.length, allItems.size());
+        allItems.subList(from, to).clear();
+        allItems.addAll(from, visibleItems);
+        stored.put(holder.orderId, allItems);
+        saveOrders();
     }
 
     private void finishDelivery(Player player, Inventory inventory, String orderId) {
@@ -1053,11 +1178,29 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         @Override public Inventory getInventory() { return null; }
     }
 
-    private record CollectionHolder(String orderId) implements InventoryHolder {
+    private static final class CollectionHolder implements InventoryHolder {
+        private final String orderId;
+        private final int page;
+        private boolean switching;
+
+        private CollectionHolder(String orderId, int page) {
+            this.orderId = orderId;
+            this.page = page;
+        }
+
+        private String orderId() { return orderId; }
         @Override public Inventory getInventory() { return null; }
     }
 
-    private record DeliveryHolder(String orderId) implements InventoryHolder {
+    private static final class DeliveryHolder implements InventoryHolder {
+        private final String orderId;
+        private boolean switching;
+
+        private DeliveryHolder(String orderId) {
+            this.orderId = orderId;
+        }
+
+        private String orderId() { return orderId; }
         @Override public Inventory getInventory() { return null; }
     }
 }
