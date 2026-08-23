@@ -8,8 +8,15 @@ commands:
   orders:
     description: Browse and create market orders
     aliases: [order]
+  banditorders:
+    description: Manage and reload BanditOrders
+    aliases: [borders]
+    usage: /banditorders <reload|delete|info|help>
 permissions:
   banditorders.use:
     default: true
   banditorders.admin:
+    default: op
+  banditorders.amount.unlimited:
+    description: Allows an unlimited number of active orders
     default: op

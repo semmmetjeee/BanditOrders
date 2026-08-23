@@ -1,3 +1,5 @@
+# Fallback when a player has no banditorders.amount.<number> permission.
+# When multiple amount permissions are present, the highest number is used.
 max-orders-per-player: 10
 messages:
   prefix: "&#d9a441&lORDERS &8» &f"
@@ -10,7 +12,7 @@ messages:
   delete-usage: "%prefix%&cUsage: /orders delete <order-id>"
   order-not-found: "%prefix%&cOrder not found."
   refund-failed: "%prefix%&cRefund failed; the order was kept safe."
-  full: "%prefix%&cYou reached the maximum number of active orders."
+  full: "%prefix%&cYou reached your limit of &#d9a441%limit% &cactive orders."
   no-money: "%prefix%&cYou do not have enough money for this order."
   paid: "%prefix%&aDelivered &#d9a441%amount%x %item% &aand earned &#d9a441%money%&a."
   payment-failed: "%prefix%&cThe payment failed. Your items were returned."
@@ -24,6 +26,10 @@ messages:
   builder-invalid-price: "%prefix%&cEnter a price above zero, or type cancel."
   builder-cancelled: "%prefix%&fOrder creation cancelled."
 
-  admin-deleted: "%prefix%&aDeleted order &#d9a441%id%&a."
+  admin-deleted: "%prefix%&aDeleted order &#d9a441%id% &afrom &#d9a441%buyer% &aand refunded &#d9a441%refund%&a."
+  admin-deleted-owner: "%prefix%&cAn admin deleted order &#d9a441%id%&c. You were refunded &#d9a441%refund%&c."
+  admin-delete-failed: "%prefix%&cCould not refund order &#d9a441%id%&c, so it was kept safe."
+  admin-storage-not-empty: "%prefix%&cOrder &#d9a441%id% &cstill contains &#d9a441%amount% &cdelivered items. The buyer must collect them first."
+  admin-info: "%prefix%&fLoaded &#d9a441%orders% &forders, of which &#d9a441%active% &fare active."
   reloaded: "%prefix%&aBanditOrders configuration reloaded."
-  admin-usage: "%prefix%&7Use &f/orders admin <reload|delete>&7."
+  admin-usage: "%prefix%&7Use &f/banditorders <reload|delete <id>|info|help>&7."

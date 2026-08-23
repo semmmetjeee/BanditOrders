@@ -21,6 +21,12 @@ list:
     - "&7Remaining value: &#d9a441%total_price%"
     - ""
     - "&#d9a441→ Click to deliver items"
+  # Only shown to players with banditorders.admin. The Q action is bound to
+  # the clicked order and keeps working when this text is changed.
+  admin-lore:
+    - ""
+    - "&#e3262eQ → Admin-delete this order"
+    - "&8Order ID: %id%"
 
   # Fixed sorting action at the top. You can freely change the item and text.
   sort:

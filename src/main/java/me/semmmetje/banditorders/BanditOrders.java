@@ -5,14 +5,17 @@ import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -23,6 +26,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +51,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-public final class BanditOrders extends JavaPlugin implements Listener, CommandExecutor {
+public final class BanditOrders extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final Pattern HEX = Pattern.compile("(?i)&#([0-9a-f]{6})");
     private static final List<Material> SELECTABLE_MATERIALS = Arrays.stream(Material.values())
             .filter(Material::isItem)
@@ -74,7 +78,12 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         reloadGui();
         hookEconomy();
         loadOrders();
-        Objects.requireNonNull(getCommand("orders"), "orders command is missing from plugin.yml").setExecutor(this);
+        var ordersCommand = Objects.requireNonNull(getCommand("orders"), "orders command is missing from plugin.yml");
+        ordersCommand.setExecutor(this);
+        ordersCommand.setTabCompleter(this);
+        var adminCommand = Objects.requireNonNull(getCommand("banditorders"), "banditorders command is missing from plugin.yml");
+        adminCommand.setExecutor(this);
+        adminCommand.setTabCompleter(this);
         getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -153,6 +162,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("banditorders")) return adminCommand(sender, args);
         if (!(sender instanceof Player player)) return true;
         if (!player.hasPermission("banditorders.use")) {
             message(player, "no-permission", Map.of());
@@ -186,7 +196,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 return true;
             }
             case "admin" -> {
-                if (player.hasPermission("banditorders.admin")) return admin(player, args);
+                if (player.hasPermission("banditorders.admin")) {
+                    return adminCommand(player, Arrays.copyOfRange(args, 1, args.length));
+                }
             }
             default -> { }
         }
@@ -195,24 +207,70 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         return true;
     }
 
-    private boolean admin(Player player, String[] args) {
-        if (args.length > 2 && args[1].equalsIgnoreCase("delete")) {
-            Order removed = orders.remove(args[2]);
-            if (removed != null) stored.remove(removed.id());
-            saveOrders();
-            message(player, removed == null ? "order-not-found" : "admin-deleted", Map.of("id", args[2]));
+    private boolean adminCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("banditorders.admin")) {
+            message(sender, "no-permission", Map.of());
             return true;
         }
-        if (args.length > 1 && args[1].equalsIgnoreCase("reload")) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             reloadConfig();
             getConfig().options().copyDefaults(true);
             saveConfig();
             reloadGui();
             hookEconomy();
-            message(player, "reloaded", Map.of());
+            message(sender, "reloaded", Map.of());
             return true;
         }
-        message(player, "admin-usage", Map.of());
+        if (args.length == 2 && args[0].equalsIgnoreCase("delete")) {
+            adminDeleteOrder(sender, args[1]);
+            return true;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("info")) {
+            long active = orders.values().stream().filter(order -> order.remaining() > 0).count();
+            message(sender, "admin-info", Map.of(
+                    "orders", String.valueOf(orders.size()),
+                    "active", String.valueOf(active)
+            ));
+            return true;
+        }
+        message(sender, "admin-usage", Map.of());
+        return true;
+    }
+
+    private boolean adminDeleteOrder(CommandSender sender, String id) {
+        Order order = orders.get(id);
+        if (order == null) {
+            message(sender, "order-not-found", Map.of("id", id));
+            return false;
+        }
+        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAmount).sum();
+        if (storedItems > 0) {
+            message(sender, "admin-storage-not-empty", Map.of(
+                    "id", order.id(),
+                    "amount", String.valueOf(storedItems)
+            ));
+            return false;
+        }
+
+        OfflinePlayer buyer = Bukkit.getOfflinePlayer(order.buyer());
+        double refund = order.remaining() * order.price();
+        if (refund > 0 && (economy == null || !economy.depositPlayer(buyer, refund).transactionSuccess())) {
+            message(sender, "admin-delete-failed", Map.of("id", order.id()));
+            return false;
+        }
+
+        orders.remove(order.id());
+        stored.remove(order.id());
+        saveOrders();
+        String buyerName = buyer.getName() == null ? order.buyer().toString() : buyer.getName();
+        Map<String, String> variables = Map.of(
+                "id", order.id(),
+                "buyer", buyerName,
+                "refund", money(refund)
+        );
+        message(sender, "admin-deleted", variables);
+        Player onlineBuyer = buyer.getPlayer();
+        if (onlineBuyer != null && onlineBuyer != sender) message(onlineBuyer, "admin-deleted-owner", variables);
         return true;
     }
 
@@ -247,8 +305,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             return false;
         }
         long own = orders.values().stream().filter(order -> order.buyer().equals(player.getUniqueId()) && order.remaining() > 0).count();
-        if (own >= getConfig().getInt("max-orders-per-player", 10)) {
-            message(player, "full", Map.of());
+        int limit = orderLimit(player);
+        if (own >= limit) {
+            message(player, "full", Map.of("limit", String.valueOf(limit)));
             return false;
         }
         double totalPrice = amount * price;
@@ -272,6 +331,25 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 "total", money(totalPrice)
         ));
         return true;
+    }
+
+    private int orderLimit(Player player) {
+        if (player.hasPermission("banditorders.amount.unlimited")) return Integer.MAX_VALUE;
+        int highest = player.getEffectivePermissions().stream()
+                .filter(PermissionAttachmentInfo::getValue)
+                .map(PermissionAttachmentInfo::getPermission)
+                .filter(permission -> permission.startsWith("banditorders.amount."))
+                .map(permission -> permission.substring("banditorders.amount.".length()))
+                .mapToInt(value -> {
+                    try {
+                        return Math.max(0, Integer.parseInt(value));
+                    } catch (NumberFormatException ignored) {
+                        return -1;
+                    }
+                })
+                .max()
+                .orElse(-1);
+        return highest >= 0 ? highest : Math.max(0, getConfig().getInt("max-orders-per-player", 10));
     }
 
     private boolean deleteOrder(Player player, String[] args) {
@@ -310,10 +388,18 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         for (int index = 0; index < contentSlots.length && from + index < visible.size(); index++) {
             Order order = visible.get(from + index);
             Map<String, String> variables = variables(order);
+            List<String> lore = new ArrayList<>(replace(gui.getStringList("list.order-lore"), variables));
+            if (player.hasPermission("banditorders.admin")) {
+                lore.addAll(replace(configuredLore("list.admin-lore", List.of(
+                        "",
+                        "&cQ → Admin-delete this order",
+                        "&8Order ID: %id%"
+                )), variables));
+            }
             inventory.setItem(contentSlots[index], item(
                     order.item(),
                     replace(gui.getString("list.order-name", "&#d9a441%item%"), variables),
-                    replace(gui.getStringList("list.order-lore"), variables),
+                    lore,
                     null,
                     false
             ));
@@ -390,7 +476,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         if (holder instanceof ListHolder listHolder) {
             event.setCancelled(true);
             if (event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()) return;
-            handleListClick(player, event.getRawSlot(), listHolder);
+            handleListClick(player, event.getRawSlot(), listHolder, event.getClick());
             return;
         }
         if (holder instanceof SelectionHolder selectionHolder) {
@@ -405,7 +491,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
     }
 
-    private void handleListClick(Player player, int slot, ListHolder holder) {
+    private void handleListClick(Player player, int slot, ListHolder holder, ClickType click) {
         int size = inventorySize("list.size", 54);
         if (buttonClicked("list.sort", slot, 4, size)) {
             openOrders(player, 0, holder.scope(), holder.query(), nextSort(holder.sort()));
@@ -440,6 +526,14 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         int orderIndex = holder.page() * contentSlots.length + index;
         if (index < 0 || orderIndex < 0 || orderIndex >= visible.size()) return;
         Order order = visible.get(orderIndex);
+        if ((click == ClickType.DROP || click == ClickType.CONTROL_DROP)
+                && player.hasPermission("banditorders.admin")) {
+            if (adminDeleteOrder(player, order.id())) {
+                Bukkit.getScheduler().runTask(this,
+                        () -> openOrders(player, holder.page(), holder.scope(), holder.query(), holder.sort()));
+            }
+            return;
+        }
         if (order.buyer().equals(player.getUniqueId())) openCollection(player, order);
         else if (order.remaining() > 0) openDelivery(player, order);
     }
@@ -718,10 +812,51 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         return ChatColor.translateAlternateColorCodes('&', output.toString());
     }
 
-    private void message(Player player, String key, Map<String, String> variables) {
+    private void message(CommandSender sender, String key, Map<String, String> variables) {
         String configured = getConfig().getString("messages." + key, "");
         String prefix = getConfig().getString("messages.prefix", "");
-        player.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)));
+        sender.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)));
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("banditorders")) {
+            if (!sender.hasPermission("banditorders.admin")) return List.of();
+            if (args.length == 1) return matches(args[0], List.of("reload", "delete", "info", "help"));
+            if (args.length == 2 && args[0].equalsIgnoreCase("delete")) {
+                return matches(args[1], new ArrayList<>(orders.keySet()));
+            }
+            return List.of();
+        }
+        if (!(sender instanceof Player player) || !player.hasPermission("banditorders.use")) return List.of();
+        if (args.length == 1) {
+            List<String> options = new ArrayList<>(List.of("create", "delete", "search", "filter", "mine"));
+            if (player.hasPermission("banditorders.admin")) options.add("admin");
+            return matches(args[0], options);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("filter")) {
+            return matches(args[1], List.of("newest", "oldest", "price-desc", "price-asc"));
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("delete")) {
+            List<String> ownIds = orders.values().stream()
+                    .filter(order -> order.buyer().equals(player.getUniqueId()))
+                    .map(Order::id)
+                    .toList();
+            return matches(args[1], ownIds);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("admin") && player.hasPermission("banditorders.admin")) {
+            return matches(args[1], List.of("reload", "delete", "info", "help"));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("admin")
+                && args[1].equalsIgnoreCase("delete") && player.hasPermission("banditorders.admin")) {
+            return matches(args[2], new ArrayList<>(orders.keySet()));
+        }
+        return List.of();
+    }
+
+    private List<String> matches(String input, List<String> options) {
+        String prefix = input.toLowerCase(Locale.ROOT);
+        return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
     }
 
     private int inventorySize(String path, int fallback) {
