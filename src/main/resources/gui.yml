@@ -232,10 +232,10 @@ delivery:
       material: OAK_DOOR
       name: "&#d9a441&lBACK TO ORDERS"
       lore:
-        - "&7Cancel this delivery and return"
-        - "&7all inserted items."
+        - "&7Submit matching items and return"
+        - "&7the remaining items to you."
         - ""
-        - "&#d9a441→ Click to go back"
+        - "&#d9a441→ Deliver and go back"
 
 storage:
   size: 54

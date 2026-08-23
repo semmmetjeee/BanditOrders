@@ -591,7 +591,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 List.of("&7Place matching items in the slots.", "&7They are paid when you close the menu.", "&7Remaining: &#d9a441%remaining%"), variables));
         for (int inputSlot : slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), inventorySize)) inventory.setItem(inputSlot, null);
         putButton(inventory, "delivery.buttons.back", 22, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
-                List.of("&7Cancel this delivery and return", "&7all inserted items.", "", "&#d9a441→ Click to go back"), Map.of());
+                List.of("&7Submit matching items and return", "&7the remaining items to you.", "", "&#d9a441→ Deliver and go back"), Map.of());
         player.openInventory(inventory);
     }
 
@@ -632,8 +632,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             if (buttonClicked("delivery.buttons.back", event.getRawSlot(), 22, top.getSize())) {
                 event.setCancelled(true);
                 deliveryHolder.switching = true;
-                returnInputs(player, top, inputs);
-                openOrders(player, 0, "all", "", "newest");
+                finishDelivery(player, top, deliveryHolder.orderId());
+                Bukkit.getScheduler().runTask(this,
+                        () -> openOrders(player, 0, "all", "", "newest"));
                 return;
             }
             if (!inputs.contains(event.getRawSlot())) event.setCancelled(true);
@@ -658,6 +659,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             holder.switching = true;
             saveCollectionPage(inventory, holder);
             collectionLocks.remove(holder.orderId);
+            removeCompletedOrderIfClaimed(holder.orderId, player);
             openOrders(player, 0, "all", "", "newest");
             return;
         }
@@ -902,6 +904,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             if (!holder.switching) {
                 saveCollectionPage(event.getInventory(), holder);
                 collectionLocks.remove(holder.orderId);
+                if (event.getPlayer() instanceof Player player) {
+                    removeCompletedOrderIfClaimed(holder.orderId, player);
+                }
             }
             return;
         }
@@ -925,6 +930,20 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         allItems.addAll(from, visibleItems);
         stored.put(holder.orderId, allItems);
         saveOrders();
+    }
+
+    private void removeCompletedOrderIfClaimed(String orderId, Player player) {
+        Order order = orders.get(orderId);
+        if (order == null || order.remaining() > 0) return;
+        boolean hasItems = stored.getOrDefault(orderId, List.of()).stream()
+                .anyMatch(stack -> stack != null && !stack.getType().isAir() && stack.getAmount() > 0);
+        if (hasItems) return;
+
+        Map<String, String> variables = variables(order);
+        orders.remove(orderId);
+        stored.remove(orderId);
+        saveOrders();
+        message(player, "completed-removed", variables);
     }
 
     private void finishDelivery(Player player, Inventory inventory, String orderId) {
@@ -1140,9 +1159,41 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     }
 
     private void message(CommandSender sender, String key, Map<String, String> variables) {
-        String configured = getConfig().getString("messages." + key, "");
-        String prefix = getConfig().getString("messages.prefix", "");
+        String configured = getConfig().getString("messages." + key, fallbackMessage(key));
+        String prefix = getConfig().getString("messages.prefix", "&#d9a441&lORDERS &8» &f");
         sender.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)));
+    }
+
+    private String fallbackMessage(String key) {
+        return switch (key) {
+            case "no-permission" -> "%prefix%&cYou do not have permission to use orders.";
+            case "usage" -> "%prefix%&7Use &f/orders&7, &f/orders mine&7, &f/orders cancel <id>&7 or &f/orders create <item|hand> <amount> <price>&7.";
+            case "no-economy" -> "%prefix%&cVault and an economy provider are required.";
+            case "invalid" -> "%prefix%&cUsage: /orders create <item|hand> <amount> <price per item>";
+            case "created" -> "%prefix%&aCreated an order for &#d9a441%amount%x %item% &aat &#d9a441%price% &aeach.";
+            case "cancelled", "deleted" -> "%prefix%&aCancelled order &#d9a441%id% &aand refunded &#d9a441%refund%&a.";
+            case "cancel-usage", "delete-usage" -> "%prefix%&cUsage: /orders cancel <order-id>";
+            case "cancel-storage-not-empty" -> "%prefix%&cCollect the &#d9a441%amount% &cdelivered items from this order before cancelling it.";
+            case "order-not-found" -> "%prefix%&cOrder not found.";
+            case "refund-failed" -> "%prefix%&cRefund failed; the order was kept safe.";
+            case "full" -> "%prefix%&cYou reached your limit of &#d9a441%limit% &cactive orders.";
+            case "no-money" -> "%prefix%&cYou do not have enough money for this order.";
+            case "paid" -> "%prefix%&aDelivered &#d9a441%amount%x %item% &aand earned &#d9a441%money%&a.";
+            case "payment-failed" -> "%prefix%&cThe payment failed. Your items were returned.";
+            case "storage-locked" -> "%prefix%&cThis order storage is already open.";
+            case "completed-removed" -> "%prefix%&aCompleted order &#d9a441%id% &awas removed after you claimed all items.";
+            case "builder-invalid-amount" -> "%prefix%&cEnter a whole number above zero.";
+            case "builder-invalid-price" -> "%prefix%&cEnter a price above zero.";
+            case "builder-cancelled" -> "%prefix%&fOrder creation cancelled.";
+            case "admin-deleted" -> "%prefix%&aDeleted order &#d9a441%id% &afrom &#d9a441%buyer% &aand refunded &#d9a441%refund%&a.";
+            case "admin-deleted-owner" -> "%prefix%&cAn admin deleted order &#d9a441%id%&c. You were refunded &#d9a441%refund%&c.";
+            case "admin-delete-failed" -> "%prefix%&cCould not refund order &#d9a441%id%&c, so it was kept safe.";
+            case "admin-storage-not-empty" -> "%prefix%&cOrder &#d9a441%id% &cstill contains &#d9a441%amount% &cdelivered items. The buyer must collect them first.";
+            case "admin-info" -> "%prefix%&fLoaded &#d9a441%orders% &forders, of which &#d9a441%active% &fare active.";
+            case "reloaded" -> "%prefix%&aBanditOrders configuration reloaded.";
+            case "admin-usage" -> "%prefix%&7Use &f/banditorders <reload|delete <id>|info|help>&7.";
+            default -> "%prefix%&cMissing message: &f" + key;
+        };
     }
 
     @Override

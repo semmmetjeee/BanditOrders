@@ -21,6 +21,7 @@ messages:
   paid: "%prefix%&aDelivered &#d9a441%amount%x %item% &aand earned &#d9a441%money%&a."
   payment-failed: "%prefix%&cThe payment failed. Your items were returned."
   storage-locked: "%prefix%&cThis order storage is already open."
+  completed-removed: "%prefix%&aCompleted order &#d9a441%id% &awas removed after you claimed all items."
 
   # Validation messages for the native order input dialog.
   builder-invalid-amount: "%prefix%&cEnter a whole number above zero."
