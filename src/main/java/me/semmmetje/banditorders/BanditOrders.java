@@ -502,7 +502,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
 
         putButton(inventory, "selection.buttons.previous", 45, Material.ARROW, "&fPrevious page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
-        putButton(inventory, "selection.buttons.info", 49, Material.BOOK, "&#d9a441&lITEMS", List.of("&7Page &f%page%&7/&f%pages%"), Map.of("page", String.valueOf(page + 1), "pages", String.valueOf(pageCount)));
+        putButton(inventory, "selection.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+                List.of("&7Return to the orders menu.", "", "&#d9a441→ Click to go back"), Map.of());
         putButton(inventory, "selection.buttons.next", 53, Material.ARROW, "&fNext page", List.of("&7Go to page %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
         player.openInventory(inventory);
     }
@@ -762,7 +763,10 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             openItemSelector(player, holder.page() + 1);
             return;
         }
-        if (buttonClicked("selection.buttons.info", slot, 49, size)) return;
+        if (buttonClicked("selection.buttons.back", slot, 49, size)) {
+            openOrders(player, 0, "all", "", "newest");
+            return;
+        }
 
         int[] contentSlots = slots("selection.content-slots", defaultSelectionSlots(), size);
         int localIndex = indexOf(contentSlots, slot);

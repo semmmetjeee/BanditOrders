@@ -174,13 +174,15 @@ selection:
       name: "&fPrevious page"
       lore:
         - "&7Go to page %page%."
-    info:
+    back:
       enabled: true
       slot: 49
-      material: BOOK
-      name: "&#d9a441&lITEMS"
+      material: OAK_DOOR
+      name: "&#d9a441&lBACK TO ORDERS"
       lore:
-        - "&7Page &f%page%&7/&f%pages%"
+        - "&7Return to the orders menu."
+        - ""
+        - "&#d9a441→ Click to go back"
     next:
       enabled: true
       slot: 53
