@@ -108,7 +108,22 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             configured = "orders";
         }
         if (!configured.equals("orders")) {
-            getServer().getCommandMap().register(getName().toLowerCase(Locale.ROOT), configured, ordersCommand);
+            Command configuredCommand = new Command(configured) {
+                @Override
+                public boolean execute(CommandSender sender, String label, String[] args) {
+                    return ordersCommand.execute(sender, label, args);
+                }
+
+                @Override
+                public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                    return ordersCommand.tabComplete(sender, alias, args);
+                }
+            };
+            configuredCommand.setDescription("Browse and create market orders");
+            boolean registered = getServer().getCommandMap().register(getName().toLowerCase(Locale.ROOT), configuredCommand);
+            if (!registered) {
+                getLogger().warning("De command /" + configured + " is al geregistreerd; /orders blijft beschikbaar.");
+            }
         }
     }
 
