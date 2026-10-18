@@ -20,7 +20,7 @@ list:
     - "&7Resterende waarde: &#d9a441%total_price%"
     - ""
     - "&#d9a441→ Klik om items te leveren"
-  # Alleen zichtbaar voor spelers met banditbestellingen.admin.
+  # Alleen zichtbaar voor spelers met banditorders.admin.
   admin-lore:
     - ""
     - "&#e3262eQ → Verwijder deze bestelling als beheerder"
@@ -56,12 +56,12 @@ list:
       enabled: true
       slot: 48
       material: EMERALD
-      name: "&#62dc91&lNIEUWE OPDRACHT"
+      name: "&#62dc91&lNIEUWE BESTELLING"
       lore:
         - "&7Maak een nieuwe inkoopbestelling aan."
         - ""
         - "&#d9a441→ Klik om te beginnen"
-    your-bestellingen:
+    your-orders:
       enabled: true
       slot: 49
       material: CHEST
@@ -91,7 +91,7 @@ list:
 
 # Apart menu via Jouw bestellingen en /bestellingen mine.
 # Klikacties gebruiken de ingestelde slots, niet namen of beschrijvingen.
-my-bestellingen:
+my-orders:
   size: 54
   title: "&#55b7ff&lJOUW BESTELLINGEN"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
@@ -121,7 +121,7 @@ my-bestellingen:
     enabled: true
     slot: 22
     material: BARRIER
-    name: "&#e3262e&lGEEN OPDRACHTEN GEVONDEN"
+    name: "&#e3262e&lGEEN BESTELLINGEN GEVONDEN"
     lore:
       - "&7Je hebt nog geen bestellingen."
       - ""
@@ -138,7 +138,7 @@ my-bestellingen:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
+      name: "&#d9a441&lTERUG NAAR BESTELLINGEN"
       lore:
         - "&7Ga terug naar alle markt-bestellingen."
         - ""
@@ -180,7 +180,7 @@ selection:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
+      name: "&#d9a441&lTERUG NAAR BESTELLINGEN"
       lore:
         - "&7Ga terug naar het bestellingenmenu."
         - ""
@@ -195,7 +195,7 @@ selection:
 
 # Invoervenster voor aantal en prijs. Acties blijven werken als je teksten aanpast.
 order-dialog:
-  title: "&#d9a441&lMAAK OPDRACHT: %item%"
+  title: "&#d9a441&lMAAK BESTELLING: %item%"
   input-width: 300
   button-width: 150
   amount:
@@ -230,7 +230,7 @@ delivery:
       enabled: true
       slot: 22
       material: OAK_DOOR
-      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
+      name: "&#d9a441&lTERUG NAAR BESTELLINGEN"
       lore:
         - "&7Lever de juiste items in en geef"
         - "&7de overige items aan je terug."
@@ -254,7 +254,7 @@ storage:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
+      name: "&#d9a441&lTERUG NAAR BESTELLINGEN"
       lore:
         - "&7Ga terug naar jouw bestellingen."
         - ""
