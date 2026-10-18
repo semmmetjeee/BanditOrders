@@ -1,6 +1,5 @@
-# Every visual item is editable. Button actions are bound to their configured
-# slots, never to their display name or lore, so text changes cannot break menus.
-# Inventory sizes must be between 9 and 54 and divisible by 9. Slots start at 0.
+# Alle menu-items zijn aanpasbaar. Knoppen werken via hun ingestelde slot, niet via naam of beschrijving.
+# Zo blijven acties werken als je teksten aanpast. Menuformaten: 9 t/m 54 slots, deelbaar door 9. Slots beginnen bij 0.
 
 border:
   enabled: true
@@ -11,34 +10,33 @@ border:
 
 list:
   size: 54
-  title: "&#d9a441&lMARKET ORDERS"
+  title: "&#d9a441&lMARKTORDERS"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#d9a441%item%"
   order-lore:
-    - "&7Buyer: &#d9a441%buyer%"
-    - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
-    - "&7Price each: &#d9a441%price%"
-    - "&7Remaining value: &#d9a441%total_price%"
+    - "&7Koper: &#d9a441%buyer%"
+    - "&7Gezocht: &#d9a441%remaining%&7/&f%total%"
+    - "&7Prijs per stuk: &#d9a441%price%"
+    - "&7Resterende waarde: &#d9a441%total_price%"
     - ""
-    - "&#d9a441→ Click to deliver items"
-  # Only shown to players with banditorders.admin. The Q action is bound to
-  # the clicked order and keeps working when this text is changed.
+    - "&#d9a441→ Klik om items te leveren"
+  # Alleen zichtbaar voor spelers met banditorders.admin.
   admin-lore:
     - ""
-    - "&#e3262eQ → Admin-delete this order"
-    - "&8Order ID: %id%"
+    - "&#e3262eQ → Verwijder deze opdracht als beheerder"
+    - "&8Opdracht-ID: %id%"
 
-  # Fixed sorting action at the top. You can freely change the item and text.
+  # Sorteerknop bovenaan.
   sort:
     enabled: true
     slot: 4
     material: HOPPER
-    name: "&#d9a441&lSORT: &f%sort%"
+    name: "&#d9a441&lSORTEREN: &f%sort%"
     lore:
-      - "&7Current: &f%sort%"
-      - "&7Next: &f%next_sort%"
+      - "&7Huidig: &f%sort%"
+      - "&7Volgende: &f%next_sort%"
       - ""
-      - "&#d9a441→ Click to change"
+      - "&#d9a441→ Klik om te wijzigen"
     glow: false
     names:
       newest: "Nieuwste"
@@ -51,218 +49,220 @@ list:
       enabled: true
       slot: 45
       material: ARROW
-      name: "&fPrevious page"
+      name: "&fVorige pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
     new-order:
       enabled: true
       slot: 48
       material: EMERALD
-      name: "&#62dc91&lNEW ORDER"
+      name: "&#62dc91&lNIEUWE OPDRACHT"
       lore:
-        - "&7Create a new wanted order."
+        - "&7Maak een nieuwe inkoopopdracht aan."
         - ""
-        - "&#d9a441→ Click to start"
+        - "&#d9a441→ Klik om te beginnen"
     your-orders:
       enabled: true
       slot: 49
       material: CHEST
-      name: "&#55b7ff&lYOUR ORDERS"
+      name: "&#55b7ff&lJOUW ORDERS"
       lore:
-        - "&7View your orders and storage."
+        - "&7Bekijk je opdrachten en opslag."
         - ""
-        - "&#d9a441→ Click to open"
+        - "&#d9a441→ Klik om te openen"
     back:
       enabled: true
       slot: 50
       material: OAK_DOOR
-      name: "&fBack to market"
+      name: "&fTerug naar de markt"
       lore:
-        - "&7Return to the main market menu."
+        - "&7Ga terug naar het hoofdmenu van de markt."
         - ""
-        - "&#d9a441→ Click to go back"
-      # Command executed as the player. A leading slash is optional.
+        - "&#d9a441→ Klik om terug te gaan"
+      # Commando dat als speler wordt uitgevoerd. Een slash aan het begin is optioneel.
       command: "markt"
     next:
       enabled: true
       slot: 53
       material: ARROW
-      name: "&fNext page"
+      name: "&fVolgende pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
 
-# Completely separate menu opened by Your Orders and /orders mine.
+# Apart menu via Jouw opdrachten en /orders mine.
 # Its clicks use this menu's holder and configured slots, not names or lore.
 my-orders:
   size: 54
-  title: "&#55b7ff&lYOUR ORDERS"
+  title: "&#55b7ff&lJOUW ORDERS"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#55b7ff%item%"
   order-lore:
-    - "&7Wanted: &#d9a441%remaining%&7/&f%total%"
-    - "&7Price each: &#d9a441%price%"
-    - "&7Remaining value: &#d9a441%total_price%"
+    - "&7Gezocht: &#d9a441%remaining%&7/&f%total%"
+    - "&7Prijs per stuk: &#d9a441%price%"
+    - "&7Resterende waarde: &#d9a441%total_price%"
     - ""
-    - "&#55b7ff→ Click to open storage"
-    - "&#e3262e→ Shift-click to cancel"
+    - "&#55b7ff→ Klik om te openen storage"
+    - "&#e3262e→ Shift-klik om te annuleren"
   admin-lore:
     - ""
-    - "&#e3262eQ → Admin-delete this order"
-    - "&8Order ID: %id%"
+    - "&#e3262eQ → Verwijder deze opdracht als beheerder"
+    - "&8Opdracht-ID: %id%"
   sort:
     enabled: true
     slot: 4
     material: HOPPER
-    name: "&#55b7ff&lSORT: &f%sort%"
+    name: "&#55b7ff&lSORTEREN: &f%sort%"
     lore:
-      - "&7Current: &f%sort%"
-      - "&7Next: &f%next_sort%"
+      - "&7Huidig: &f%sort%"
+      - "&7Volgende: &f%next_sort%"
       - ""
-      - "&#55b7ff→ Click to change"
+      - "&#55b7ff→ Klik om te wijzigen"
   empty:
     enabled: true
     slot: 22
     material: BARRIER
-    name: "&#e3262e&lNO ORDERS FOUND"
+    name: "&#e3262e&lGEEN OPDRACHTEN GEVONDEN"
     lore:
-      - "&7You do not have any orders yet."
+      - "&7Je hebt nog geen opdrachten."
       - ""
-      - "&#d9a441→ Create one from the orders menu"
+      - "&#d9a441→ Maak er een aan via het opdrachtenmenu"
   buttons:
     previous:
       enabled: true
       slot: 45
       material: ARROW
-      name: "&fPrevious page"
+      name: "&fVorige pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
     back:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lBACK TO ORDERS"
+      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Return to all market orders."
+        - "&7Ga terug naar alle marktorders."
         - ""
-        - "&#d9a441→ Click to go back"
+        - "&#d9a441→ Klik om terug te gaan"
     next:
       enabled: true
       slot: 53
       material: ARROW
-      name: "&fNext page"
+      name: "&fVolgende pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
 
-# Clicking New Order opens every usable Minecraft item across multiple pages.
-# After choosing an item, a native Minecraft dialog asks for amount and price.
+# Via Nieuwe opdracht kun je alle bruikbare Minecraft-items kiezen. Daarna vul je aantal en prijs in.
 selection:
   size: 54
-  title: "&#d9a441&lSELECT AN ITEM"
-  # Slots 0-44 provide 45 items per page. The bottom row contains navigation.
-  content-slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+  title: "&#d9a441&lKIES EEN ITEM"
+  # De buitenste rand bestaat uit grijze ruiten; items staan alleen in het midden.
+  content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   border:
-    enabled: false
+    enabled: true
+    material: GRAY_STAINED_GLASS_PANE
+    name: " "
+    lore: []
+    glow: false
   item:
     name: "&f%item%"
     lore:
       - ""
-      - "&#d9a441→ Click to select item"
+      - "&#d9a441→ Klik om dit item te kiezen"
   buttons:
     previous:
       enabled: true
       slot: 45
       material: ARROW
-      name: "&fPrevious page"
+      name: "&fVorige pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
     back:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lBACK TO ORDERS"
+      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Return to the orders menu."
+        - "&7Ga terug naar het opdrachtenmenu."
         - ""
-        - "&#d9a441→ Click to go back"
+        - "&#d9a441→ Klik om terug te gaan"
     next:
       enabled: true
       slot: 53
       material: ARROW
-      name: "&fNext page"
+      name: "&fVolgende pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
 
-# Native Paper/Minecraft input dialog. Actions are callback-based and therefore
-# keep working when any title, label, button name or tooltip is changed.
+# Invoervenster voor aantal en prijs. Acties blijven werken als je teksten aanpast.
 order-dialog:
-  title: "&#d9a441&lCREATE %item% ORDER"
+  title: "&#d9a441&lMAAK OPDRACHT: %item%"
   input-width: 300
   button-width: 150
   amount:
-    label: "&fAmount"
+    label: "&fAantal"
     initial: "1"
   price:
-    label: "&fPrice per item"
+    label: "&fPrijs per stuk"
     initial: ""
   confirm:
-    name: "&#62dc91&lCREATE ORDER"
-    tooltip: "&fCreate this order."
+    name: "&#62dc91&lOPDRACHT AANMAKEN"
+    tooltip: "&fMaak deze opdracht aan."
   cancel:
-    name: "&#e3262e&lCANCEL"
-    tooltip: "&fCancel this order."
+    name: "&#e3262e&lANNULEREN"
+    tooltip: "&fAnnuleer deze opdracht."
 
 delivery:
   size: 27
-  title: "&#d9a441&lDELIVER ORDER"
-  # Only these slots accept delivered items. Panes, info and buttons are protected.
+  title: "&#d9a441&lLEVER OPDRACHT"
+  # Alleen deze slots accepteren ingeleverde items. Ruiten, informatie en knoppen zijn beveiligd.
   input-slots: [10, 11, 12, 13, 14, 15, 16]
   info:
     slot: 4
     material: CHEST
     name: "&#d9a441&l%item%"
     lore:
-      - "&7Place matching items in the empty slots."
-      - "&7They are paid when you close the menu."
-      - "&7Remaining: &#d9a441%remaining%"
-      - "&7Price each: &#d9a441%price%"
+      - "&7Plaats de juiste items in de lege vakken."
+      - "&7Je ontvangt betaling wanneer je het menu sluit."
+      - "&7Resterend: &#d9a441%remaining%"
+      - "&7Prijs per stuk: &#d9a441%price%"
   buttons:
     back:
       enabled: true
       slot: 22
       material: OAK_DOOR
-      name: "&#d9a441&lBACK TO ORDERS"
+      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Submit matching items and return"
-        - "&7the remaining items to you."
+        - "&7Lever de juiste items in en geef"
+        - "&7de overige items aan je terug."
         - ""
-        - "&#d9a441→ Deliver and go back"
+        - "&#d9a441→ Lever in en ga terug"
 
 storage:
   size: 54
-  title: "&#d9a441&lORDER STORAGE &8(%page%/%pages%)"
-  # Only these slots are saved as storage. Border panes and buttons never are.
+  title: "&#d9a441&lOPDRACHTOPSLAG &8(%page%/%pages%)"
+  # Alleen deze slots worden als opslag bewaard. Ruiten en knoppen worden niet opgeslagen.
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   buttons:
     previous:
       enabled: true
       slot: 45
       material: ARROW
-      name: "&fPrevious page"
+      name: "&fVorige pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
     back:
       enabled: true
       slot: 49
       material: OAK_DOOR
-      name: "&#d9a441&lBACK TO ORDERS"
+      name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Return to your orders."
+        - "&7Ga terug naar jouw opdrachten."
         - ""
-        - "&#d9a441→ Click to go back"
+        - "&#d9a441→ Klik om terug te gaan"
     next:
       enabled: true
       slot: 53
       material: ARROW
-      name: "&fNext page"
+      name: "&fVolgende pagina"
       lore:
-        - "&7Go to page %page%."
+        - "&7Ga naar pagina %page%."
