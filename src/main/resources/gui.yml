@@ -10,7 +10,7 @@ border:
 
 list:
   size: 54
-  title: "&#d9a441&lMARKTORDERS"
+  title: "&#d9a441&lMARKTBESTELLINGEN"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#d9a441%item%"
   order-lore:
@@ -20,11 +20,11 @@ list:
     - "&7Resterende waarde: &#d9a441%total_price%"
     - ""
     - "&#d9a441→ Klik om items te leveren"
-  # Alleen zichtbaar voor spelers met banditorders.admin.
+  # Alleen zichtbaar voor spelers met banditbestellingen.admin.
   admin-lore:
     - ""
-    - "&#e3262eQ → Verwijder deze opdracht als beheerder"
-    - "&8Opdracht-ID: %id%"
+    - "&#e3262eQ → Verwijder deze bestelling als beheerder"
+    - "&8Bestelling-ID: %id%"
 
   # Sorteerknop bovenaan.
   sort:
@@ -58,16 +58,16 @@ list:
       material: EMERALD
       name: "&#62dc91&lNIEUWE OPDRACHT"
       lore:
-        - "&7Maak een nieuwe inkoopopdracht aan."
+        - "&7Maak een nieuwe inkoopbestelling aan."
         - ""
         - "&#d9a441→ Klik om te beginnen"
-    your-orders:
+    your-bestellingen:
       enabled: true
       slot: 49
       material: CHEST
-      name: "&#55b7ff&lJOUW ORDERS"
+      name: "&#55b7ff&lJOUW BESTELLINGEN"
       lore:
-        - "&7Bekijk je opdrachten en opslag."
+        - "&7Bekijk je bestellingen en opslag."
         - ""
         - "&#d9a441→ Klik om te openen"
     back:
@@ -89,11 +89,11 @@ list:
       lore:
         - "&7Ga naar pagina %page%."
 
-# Apart menu via Jouw opdrachten en /orders mine.
+# Apart menu via Jouw bestellingen en /bestellingen mine.
 # Klikacties gebruiken de ingestelde slots, niet namen of beschrijvingen.
-my-orders:
+my-bestellingen:
   size: 54
-  title: "&#55b7ff&lJOUW ORDERS"
+  title: "&#55b7ff&lJOUW BESTELLINGEN"
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   order-name: "&#55b7ff%item%"
   order-lore:
@@ -105,8 +105,8 @@ my-orders:
     - "&#e3262e→ Shift-klik om te annuleren"
   admin-lore:
     - ""
-    - "&#e3262eQ → Verwijder deze opdracht als beheerder"
-    - "&8Opdracht-ID: %id%"
+    - "&#e3262eQ → Verwijder deze bestelling als beheerder"
+    - "&8Bestelling-ID: %id%"
   sort:
     enabled: true
     slot: 4
@@ -123,9 +123,9 @@ my-orders:
     material: BARRIER
     name: "&#e3262e&lGEEN OPDRACHTEN GEVONDEN"
     lore:
-      - "&7Je hebt nog geen opdrachten."
+      - "&7Je hebt nog geen bestellingen."
       - ""
-      - "&#d9a441→ Maak er een aan via het opdrachtenmenu"
+      - "&#d9a441→ Maak er een aan via het bestellingenmenu"
   buttons:
     previous:
       enabled: true
@@ -140,7 +140,7 @@ my-orders:
       material: OAK_DOOR
       name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Ga terug naar alle markt-opdrachten."
+        - "&7Ga terug naar alle markt-bestellingen."
         - ""
         - "&#d9a441→ Klik om terug te gaan"
     next:
@@ -151,7 +151,7 @@ my-orders:
       lore:
         - "&7Ga naar pagina %page%."
 
-# Via Nieuwe opdracht kun je alle bruikbare Minecraft-items kiezen. Daarna vul je aantal en prijs in.
+# Via Nieuwe bestelling kun je alle bruikbare Minecraft-items kiezen. Daarna vul je aantal en prijs in.
 selection:
   size: 54
   title: "&#d9a441&lKIES EEN ITEM"
@@ -182,7 +182,7 @@ selection:
       material: OAK_DOOR
       name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Ga terug naar het opdrachtenmenu."
+        - "&7Ga terug naar het bestellingenmenu."
         - ""
         - "&#d9a441→ Klik om terug te gaan"
     next:
@@ -205,15 +205,15 @@ order-dialog:
     label: "&fPrijs per stuk"
     initial: ""
   confirm:
-    name: "&#62dc91&lOPDRACHT AANMAKEN"
-    tooltip: "&fMaak deze opdracht aan."
+    name: "&#62dc91&lBESTELLING AANMAKEN"
+    tooltip: "&fMaak deze bestelling aan."
   cancel:
     name: "&#e3262e&lANNULEREN"
-    tooltip: "&fAnnuleer deze opdracht."
+    tooltip: "&fAnnuleer deze bestelling."
 
 delivery:
   size: 27
-  title: "&#d9a441&lLEVER OPDRACHT"
+  title: "&#d9a441&lBESTELLING LEVEREN"
   # Alleen deze slots accepteren ingeleverde items. Ruiten, informatie en knoppen zijn beveiligd.
   input-slots: [10, 11, 12, 13, 14, 15, 16]
   info:
@@ -239,7 +239,7 @@ delivery:
 
 storage:
   size: 54
-  title: "&#d9a441&lOPDRACHTOPSLAG &8(%page%/%pages%)"
+  title: "&#d9a441&lBESTELLINGOPSLAG &8(%page%/%pages%)"
   # Alleen deze slots worden als opslag bewaard. Ruiten en knoppen worden niet opgeslagen.
   content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
   buttons:
@@ -256,7 +256,7 @@ storage:
       material: OAK_DOOR
       name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Ga terug naar jouw opdrachten."
+        - "&7Ga terug naar jouw bestellingen."
         - ""
         - "&#d9a441→ Klik om terug te gaan"
     next:
