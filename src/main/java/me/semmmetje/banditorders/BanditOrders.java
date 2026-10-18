@@ -491,9 +491,9 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             Order order = visible.get(from + index);
             Map<String, String> variables = variables(order);
             List<String> lore = new ArrayList<>(replace(configuredLore("my-orders.order-lore", List.of(
-                    "&7Wanted: &#d9a441%remaining%&7/&f%total%",
-                    "&7Price each: &#d9a441%price%",
-                    "&7Remaining value: &#d9a441%total_price%",
+                    "&7Gezocht: &#d9a441%remaining%&7/&f%total%",
+                    "&7Prijs per stuk: &#d9a441%price%",
+                    "&7Resterende waarde: &#d9a441%total_price%",
                     "",
                     "&#55b7ff→ Klik om de opslag te openen",
                     "&#e3262e→ Shift-klik om te annuleren"
