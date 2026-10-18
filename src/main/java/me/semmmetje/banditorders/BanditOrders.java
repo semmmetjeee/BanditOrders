@@ -92,10 +92,24 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         var ordersCommand = Objects.requireNonNull(getCommand("orders"), "orders command is missing from plugin.yml");
         ordersCommand.setExecutor(this);
         ordersCommand.setTabCompleter(this);
+        registerConfiguredOrderCommand(ordersCommand);
         var adminCommand = Objects.requireNonNull(getCommand("banditorders"), "banditorders command is missing from plugin.yml");
         adminCommand.setExecutor(this);
         adminCommand.setTabCompleter(this);
         getServer().getPluginManager().registerEvents(this, this);
+    }
+
+    private void registerConfiguredOrderCommand(Command ordersCommand) {
+        String configured = getConfig().getString("order-command", "orders");
+        if (configured == null) configured = "orders";
+        configured = configured.trim().toLowerCase(Locale.ROOT);
+        if (!configured.matches("[a-z0-9_-]{1,32}") || configured.equals("banditorders") || configured.equals("borders")) {
+            getLogger().warning("Ongeldige order-command in config.yml; 'orders' wordt gebruikt.");
+            configured = "orders";
+        }
+        if (!configured.equals("orders")) {
+            getServer().getCommandMap().register(getName().toLowerCase(Locale.ROOT), configured, ordersCommand);
+        }
     }
 
     @Override
@@ -376,7 +390,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                 })
                 .max()
                 .orElse(-1);
-        return highest >= 0 ? highest : Math.max(0, getConfig().getInt("max-orders-per-player", 10));
+        return highest >= 0 ? highest : Math.max(0, getConfig().getInt("max-orders-per-player", 5));
     }
 
     private boolean cancelOrderFromCommand(Player player, String[] args) {
@@ -427,7 +441,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         int pageCount = Math.max(1, (visible.size() + contentSlots.length - 1) / contentSlots.length);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         Inventory inventory = Bukkit.createInventory(new ListHolder(page, scope, query, sort), inventorySize,
-                color(gui.getString("list.title", "&#d9a441&lMARKET ORDERS")));
+                color(gui.getString("list.title", "&#d9a441&lMARKTBESTELLINGEN")));
         border(inventory);
 
         int from = page * contentSlots.length;
@@ -451,13 +465,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             ));
         }
 
-        putButton(inventory, "list.sort", 4, Material.HOPPER, "&#d9a441&lSORT: &f%sort%",
-                List.of("&7Current: &f%sort%", "&7Next: &f%next_sort%", "", "&#d9a441→ Click to change"),
+        putButton(inventory, "list.sort", 4, Material.HOPPER, "&#d9a441&lSORTEREN: &f%sort%",
+                List.of("&7Huidig: &f%sort%", "&7Volgende: &f%next_sort%", "", "&#d9a441→ Klik om te wijzigen"),
                 Map.of("sort", sortName(sort), "next_sort", sortName(nextSort(sort))));
         putButton(inventory, "list.buttons.previous", 45, Material.ARROW, "&fVorige pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
-        putButton(inventory, "list.buttons.new-order", 48, Material.EMERALD, "&#62dc91&lNEW ORDER", List.of("&7Maak een nieuwe inkoopopdracht aan.", "", "&#d9a441→ Click to start"), Map.of());
-        putButton(inventory, "list.buttons.your-orders", 49, Material.CHEST, "&#55b7ff&lYOUR ORDERS", List.of("&7Bekijk je opdrachten en opslag.", "", "&#d9a441→ Click to open"), Map.of());
-        putButton(inventory, "list.buttons.back", 50, Material.OAK_DOOR, "&fTerug naar de markt", List.of("&7Ga terug naar het hoofdmenu van de markt.", "", "&#d9a441→ Click to go back"), Map.of());
+        putButton(inventory, "list.buttons.new-order", 48, Material.EMERALD, "&#62dc91&lNIEUWE BESTELLING", List.of("&7Maak een nieuwe inkoopbestelling aan.", "", "&#d9a441→ Klik om te beginnen"), Map.of());
+        putButton(inventory, "list.buttons.your-orders", 49, Material.CHEST, "&#55b7ff&lJOUW BESTELLINGEN", List.of("&7Bekijk je bestellingen en opslag.", "", "&#d9a441→ Klik om te openen"), Map.of());
+        putButton(inventory, "list.buttons.back", 50, Material.OAK_DOOR, "&fTerug naar de markt", List.of("&7Ga terug naar het hoofdmenu van de markt.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         putButton(inventory, "list.buttons.next", 53, Material.ARROW, "&fVolgende pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
         player.openInventory(inventory);
     }
@@ -504,13 +518,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             putButton(inventory, "my-orders.empty", 22, Material.BARRIER, "&cGeen opdrachten gevonden",
                     List.of("&7Je hebt nog geen opdrachten.", "", "&#d9a441→ Maak er een aan via het opdrachtenmenu"), Map.of());
         }
-        putButton(inventory, "my-orders.sort", 4, Material.HOPPER, "&#55b7ff&lSORT: &f%sort%",
-                List.of("&7Current: &f%sort%", "&7Next: &f%next_sort%", "", "&#55b7ff→ Click to change"),
+        putButton(inventory, "my-orders.sort", 4, Material.HOPPER, "&#55b7ff&lSORTEREN: &f%sort%",
+                List.of("&7Huidig: &f%sort%", "&7Volgende: &f%next_sort%", "", "&#55b7ff→ Klik om te wijzigen"),
                 Map.of("sort", sortName(sort), "next_sort", sortName(nextSort(sort))));
         putButton(inventory, "my-orders.buttons.previous", 45, Material.ARROW, "&fVorige pagina",
                 List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
-        putButton(inventory, "my-orders.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
-                List.of("&7Return to all market orders.", "", "&#d9a441→ Click to go back"), Map.of());
+        putButton(inventory, "my-orders.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lTERUG NAAR BESTELLINGEN",
+                List.of("&7Terug naar alle marktbestellingen.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         putButton(inventory, "my-orders.buttons.next", 53, Material.ARROW, "&fVolgende pagina",
                 List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
         player.openInventory(inventory);
@@ -522,7 +536,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         int pageCount = Math.max(1, (SELECTABLE_MATERIALS.size() + contentSlots.length - 1) / contentSlots.length);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         Inventory inventory = Bukkit.createInventory(new SelectionHolder(page), inventorySize,
-                color(gui.getString("selection.title", "&#d9a441&lSELECT AN ITEM")));
+                color(gui.getString("selection.title", "&#d9a441&lKIES EEN ITEM")));
         if (gui.getBoolean("selection.border.enabled", false)) border(inventory, "selection.border");
 
         int from = page * contentSlots.length;
@@ -536,7 +550,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
         putButton(inventory, "selection.buttons.previous", 45, Material.ARROW, "&fVorige pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
         putButton(inventory, "selection.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
-                List.of("&7Return to the orders menu.", "", "&#d9a441→ Click to go back"), Map.of());
+                List.of("&7Terug naar het bestellingenmenu.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         putButton(inventory, "selection.buttons.next", 53, Material.ARROW, "&fVolgende pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
         player.openInventory(inventory);
     }
@@ -560,7 +574,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         variables.put("pages", String.valueOf(pageCount));
 
         Inventory inventory = Bukkit.createInventory(new CollectionHolder(order.id(), page), inventorySize,
-                color(replace(gui.getString("storage.title", "&#d9a441&lORDER STORAGE &8(%page%/%pages%)"), variables)));
+                color(replace(gui.getString("storage.title", "&#d9a441&lBESTELLINGOPSLAG &8(%page%/%pages%)"), variables)));
         border(inventory);
         int from = page * contentSlots.length;
         for (int index = 0; index < contentSlots.length && from + index < contents.size(); index++) {
@@ -572,7 +586,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                     List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(page)));
         }
         putButton(inventory, "storage.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
-                List.of("&7Return to your orders.", "", "&#d9a441→ Click to go back"), Map.of());
+                List.of("&7Terug naar jouw bestellingen.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         if (page + 1 < pageCount) {
             putButton(inventory, "storage.buttons.next", 53, Material.ARROW, "&fVolgende pagina",
                     List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(page + 2)));
@@ -583,7 +597,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     private void openDelivery(Player player, Order order) {
         int inventorySize = inventorySize("delivery.size", 27);
         Inventory inventory = Bukkit.createInventory(new DeliveryHolder(order.id()), inventorySize,
-                color(gui.getString("delivery.title", "&#d9a441&lLEVER OPDRACHT")));
+                color(gui.getString("delivery.title", "&#d9a441&lBESTELLING LEVEREN")));
         border(inventory);
         Map<String, String> variables = variables(order);
         int infoSlot = validSlot(gui.getInt("delivery.info.slot", gui.getInt("delivery.info-slot", 4)), 4, inventorySize);
@@ -828,7 +842,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
                 .base(DialogBase.builder(component(replace(gui.getString("order-dialog.title",
-                                "&#d9a441&lCREATE %item% ORDER"), variables)))
+                                "&#d9a441&lBESTELLING AANMAKEN: %item%"), variables)))
                         .canCloseWithEscape(true)
                         .inputs(List.of(
                                 DialogInput.text("amount", component(gui.getString("order-dialog.amount.label", "&fAantal")))
@@ -845,8 +859,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                         .build())
                 .type(DialogType.confirmation(
                         ActionButton.create(
-                                component(gui.getString("order-dialog.confirm.name", "&#62dc91&lOPDRACHT AANMAKEN")),
-                                component(gui.getString("order-dialog.confirm.tooltip", "&fCreate this order.")),
+                                component(gui.getString("order-dialog.confirm.name", "&#62dc91&lBESTELLING AANMAKEN")),
+                                component(gui.getString("order-dialog.confirm.tooltip", "&fMaak deze bestelling aan.")),
                                 buttonWidth,
                                 DialogAction.customClick((response, audience) -> {
                                     if (!(audience instanceof Player target)) return;
@@ -858,7 +872,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
                         ),
                         ActionButton.create(
                                 component(gui.getString("order-dialog.cancel.name", "&#e3262e&lANNULEREN")),
-                                component(gui.getString("order-dialog.cancel.tooltip", "&fCancel this order.")),
+                                component(gui.getString("order-dialog.cancel.tooltip", "&fAnnuleer deze bestelling.")),
                                 buttonWidth,
                                 DialogAction.customClick((response, audience) -> {
                                     if (audience instanceof Player target) {
@@ -1164,19 +1178,22 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
     private void message(CommandSender sender, String key, Map<String, String> variables) {
         String configured = getConfig().getString("messages." + key, fallbackMessage(key));
-        String prefix = getConfig().getString("messages.prefix", "&#d9a441&lORDERS &8» &f");
-        sender.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)));
+        String prefix = getConfig().getString("messages.prefix", "&#d9a441&lBESTELLINGEN &8» &f");
+        String commandName = getConfig().getString("order-command", "orders");
+        if (commandName == null || !commandName.trim().matches("[a-zA-Z0-9_-]{1,32}")) commandName = "orders";
+        sender.sendMessage(color(replace(configured, variables).replace("%prefix%", prefix)
+                .replace("%command%", commandName.trim())));
     }
 
     private String fallbackMessage(String key) {
         return switch (key) {
             case "no-permission" -> "%prefix%&cJe hebt geen toestemming om opdrachten te gebruiken.";
-            case "usage" -> "%prefix%&7Gebruik &f/orders&7, &f/orders mine&7, &f/orders cancel <id>&7 of &f/orders create <item|hand> <aantal> <prijs>&7.";
+            case "usage" -> "%prefix%&7Gebruik &f/%command%&7, &f/%command% mine&7, &f/%command% cancel <id>&7 of &f/%command% create <item|hand> <aantal> <prijs>&7.";
             case "no-economy" -> "%prefix%&cVault en een economieprovider zijn vereist.";
-            case "invalid" -> "%prefix%&cGebruik: /orders create <item|hand> <aantal> <prijs per stuk>";
+            case "invalid" -> "%prefix%&cGebruik: /%command% create <item|hand> <aantal> <prijs per stuk>";
             case "created" -> "%prefix%&aJe hebt een opdracht aangemaakt voor &#d9a441%amount%x %item% &avoor &#d9a441%price% &aper stuk.";
             case "cancelled", "deleted" -> "%prefix%&aOpdracht &#d9a441%id% &ageannuleerd en &#d9a441%refund% &aterugbetaald.";
-            case "cancel-usage", "delete-usage" -> "%prefix%&cGebruik: /orders cancel <opdracht-id>";
+            case "cancel-usage", "delete-usage" -> "%prefix%&cGebruik: /%command% cancel <bestelling-id>";
             case "cancel-storage-not-empty" -> "%prefix%&cHaal eerst de &#d9a441%amount% &cingeleverde items uit deze opdracht op voordat je annuleert.";
             case "order-not-found" -> "%prefix%&cOpdracht niet gevonden.";
             case "refund-failed" -> "%prefix%&cTerugbetaling mislukt; de opdracht is behouden.";
