@@ -452,8 +452,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             if (player.hasPermission("banditorders.admin")) {
                 lore.addAll(replace(configuredLore("list.admin-lore", List.of(
                         "",
-                        "&cQ → Admin-delete this order",
-                        "&8Order ID: %id%"
+                        "&#e3262eQ → Verwijder deze bestelling als beheerder",
+                        "&8Bestelling-ID: %id%"
                 )), variables));
             }
             inventory.setItem(contentSlots[index], item(
@@ -483,7 +483,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         int pageCount = Math.max(1, (visible.size() + contentSlots.length - 1) / contentSlots.length);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         Inventory inventory = Bukkit.createInventory(new MyOrdersHolder(page, sort), inventorySize,
-                color(gui.getString("my-orders.title", "&#55b7ff&lYOUR ORDERS")));
+                color(gui.getString("my-orders.title", "&#55b7ff&lJOUW BESTELLINGEN")));
         border(inventory);
 
         int from = page * contentSlots.length;
@@ -501,8 +501,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             if (player.hasPermission("banditorders.admin")) {
                 lore.addAll(replace(configuredLore("my-orders.admin-lore", List.of(
                         "",
-                        "&cQ → Admin-delete this order",
-                        "&8Order ID: %id%"
+                        "&#e3262eQ → Verwijder deze bestelling als beheerder",
+                        "&8Bestelling-ID: %id%"
                 )), variables));
             }
             inventory.setItem(contentSlots[index], item(
@@ -515,8 +515,8 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
 
         if (visible.isEmpty()) {
-            putButton(inventory, "my-orders.empty", 22, Material.BARRIER, "&cGeen opdrachten gevonden",
-                    List.of("&7Je hebt nog geen opdrachten.", "", "&#d9a441→ Maak er een aan via het opdrachtenmenu"), Map.of());
+            putButton(inventory, "my-orders.empty", 22, Material.BARRIER, "&cGeen bestellingen gevonden",
+                    List.of("&7Je hebt nog geen bestellingen.", "", "&#d9a441→ Maak er een aan via het bestellingenmenu"), Map.of());
         }
         putButton(inventory, "my-orders.sort", 4, Material.HOPPER, "&#55b7ff&lSORTEREN: &f%sort%",
                 List.of("&7Huidig: &f%sort%", "&7Volgende: &f%next_sort%", "", "&#55b7ff→ Klik om te wijzigen"),
@@ -549,7 +549,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         }
 
         putButton(inventory, "selection.buttons.previous", 45, Material.ARROW, "&fVorige pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.max(1, page))));
-        putButton(inventory, "selection.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+        putButton(inventory, "selection.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lTERUG NAAR BESTELLINGEN",
                 List.of("&7Terug naar het bestellingenmenu.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         putButton(inventory, "selection.buttons.next", 53, Material.ARROW, "&fVolgende pagina", List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(Math.min(pageCount, page + 2))));
         player.openInventory(inventory);
@@ -585,7 +585,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             putButton(inventory, "storage.buttons.previous", 45, Material.ARROW, "&fVorige pagina",
                     List.of("&7Ga naar pagina %page%."), Map.of("page", String.valueOf(page)));
         }
-        putButton(inventory, "storage.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+        putButton(inventory, "storage.buttons.back", 49, Material.OAK_DOOR, "&#d9a441&lTERUG NAAR BESTELLINGEN",
                 List.of("&7Terug naar jouw bestellingen.", "", "&#d9a441→ Klik om terug te gaan"), Map.of());
         if (page + 1 < pageCount) {
             putButton(inventory, "storage.buttons.next", 53, Material.ARROW, "&fVolgende pagina",
@@ -604,7 +604,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         inventory.setItem(infoSlot, configuredItem("delivery.info", order.item(), "&#d9a441&l%item%",
                 List.of("&7Plaats de juiste items in de vakken.", "&7Je ontvangt betaling wanneer je het menu sluit.", "&7Remaining: &#d9a441%remaining%"), variables));
         for (int inputSlot : slots("delivery.input-slots", List.of(10, 11, 12, 13, 14, 15, 16), inventorySize)) inventory.setItem(inputSlot, null);
-        putButton(inventory, "delivery.buttons.back", 22, Material.OAK_DOOR, "&#d9a441&lBACK TO ORDERS",
+        putButton(inventory, "delivery.buttons.back", 22, Material.OAK_DOOR, "&#d9a441&lTERUG NAAR BESTELLINGEN",
                 List.of("&7Submit matching items and return", "&7the remaining items to you.", "", "&#d9a441→ Deliver and go back"), Map.of());
         player.openInventory(inventory);
     }
@@ -1187,30 +1187,30 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
     private String fallbackMessage(String key) {
         return switch (key) {
-            case "no-permission" -> "%prefix%&cJe hebt geen toestemming om opdrachten te gebruiken.";
+            case "no-permission" -> "%prefix%&cJe hebt geen toestemming om bestellingen te gebruiken.";
             case "usage" -> "%prefix%&7Gebruik &f/%command%&7, &f/%command% mine&7, &f/%command% cancel <id>&7 of &f/%command% create <item|hand> <aantal> <prijs>&7.";
             case "no-economy" -> "%prefix%&cVault en een economieprovider zijn vereist.";
             case "invalid" -> "%prefix%&cGebruik: /%command% create <item|hand> <aantal> <prijs per stuk>";
-            case "created" -> "%prefix%&aJe hebt een opdracht aangemaakt voor &#d9a441%amount%x %item% &avoor &#d9a441%price% &aper stuk.";
-            case "cancelled", "deleted" -> "%prefix%&aOpdracht &#d9a441%id% &ageannuleerd en &#d9a441%refund% &aterugbetaald.";
+            case "created" -> "%prefix%&aJe hebt een bestelling aangemaakt voor &#d9a441%amount%x %item% &avoor &#d9a441%price% &aper stuk.";
+            case "cancelled", "deleted" -> "%prefix%&aBestelling &#d9a441%id% &ageannuleerd en &#d9a441%refund% &aterugbetaald.";
             case "cancel-usage", "delete-usage" -> "%prefix%&cGebruik: /%command% cancel <bestelling-id>";
-            case "cancel-storage-not-empty" -> "%prefix%&cHaal eerst de &#d9a441%amount% &cingeleverde items uit deze opdracht op voordat je annuleert.";
-            case "order-not-found" -> "%prefix%&cOpdracht niet gevonden.";
-            case "refund-failed" -> "%prefix%&cTerugbetaling mislukt; de opdracht is behouden.";
-            case "full" -> "%prefix%&cJe hebt je limiet van &#d9a441%limit% &cactieve opdrachten bereikt.";
-            case "no-money" -> "%prefix%&cJe hebt niet genoeg geld voor deze opdracht.";
+            case "cancel-storage-not-empty" -> "%prefix%&cHaal eerst de &#d9a441%amount% &cingeleverde items uit deze bestelling op voordat je annuleert.";
+            case "order-not-found" -> "%prefix%&cBestelling niet gevonden.";
+            case "refund-failed" -> "%prefix%&cTerugbetaling mislukt; de bestelling is behouden.";
+            case "full" -> "%prefix%&cJe hebt je limiet van &#d9a441%limit% &cactieve bestellingen bereikt.";
+            case "no-money" -> "%prefix%&cJe hebt niet genoeg geld voor deze bestelling.";
             case "paid" -> "%prefix%&aJe hebt &#d9a441%amount%x %item% &avingeleverd en &#d9a441%money% &averdiend.";
             case "payment-failed" -> "%prefix%&cDe betaling is mislukt. Je items zijn teruggegeven.";
-            case "storage-locked" -> "%prefix%&cDeze opdrachtopslag is al geopend.";
-            case "completed-removed" -> "%prefix%&aVoltooide opdracht &#d9a441%id% &ais verwijderd nadat je alle items hebt opgehaald.";
+            case "storage-locked" -> "%prefix%&cDeze bestellingopslag is al geopend.";
+            case "completed-removed" -> "%prefix%&aVoltooide bestelling &#d9a441%id% &ais verwijderd nadat je alle items hebt opgehaald.";
             case "builder-invalid-amount" -> "%prefix%&cVul een geheel getal groter dan nul in.";
             case "builder-invalid-price" -> "%prefix%&cVul een prijs groter dan nul in.";
-            case "builder-cancelled" -> "%prefix%&fAanmaken van de opdracht geannuleerd.";
-            case "admin-deleted" -> "%prefix%&aOpdracht &#d9a441%id% &avan &#d9a441%buyer% &averwijderd en &#d9a441%refund% &aterugbetaald.";
-            case "admin-deleted-owner" -> "%prefix%&cEen beheerder heeft opdracht &#d9a441%id% &cverwijderd. Je hebt &#d9a441%refund% &cteruggekregen.";
-            case "admin-delete-failed" -> "%prefix%&cOpdracht &#d9a441%id% &ckon niet worden terugbetaald en is daarom behouden.";
-            case "admin-storage-not-empty" -> "%prefix%&cOpdracht &#d9a441%id% &cbevat nog &#d9a441%amount% &cingeleverde items. De koper moet deze eerst ophalen.";
-            case "admin-info" -> "%prefix%&fEr zijn &#d9a441%orders% &fopdrachten geladen, waarvan &#d9a441%active% &factief zijn.";
+            case "builder-cancelled" -> "%prefix%&fAanmaken van de bestelling geannuleerd.";
+            case "admin-deleted" -> "%prefix%&aBestelling &#d9a441%id% &avan &#d9a441%buyer% &averwijderd en &#d9a441%refund% &aterugbetaald.";
+            case "admin-deleted-owner" -> "%prefix%&cEen beheerder heeft bestelling &#d9a441%id% &cverwijderd. Je hebt &#d9a441%refund% &cteruggekregen.";
+            case "admin-delete-failed" -> "%prefix%&cBestelling &#d9a441%id% &ckon niet worden terugbetaald en is daarom behouden.";
+            case "admin-storage-not-empty" -> "%prefix%&cBestelling &#d9a441%id% &cbevat nog &#d9a441%amount% &cingeleverde items. De koper moet deze eerst ophalen.";
+            case "admin-info" -> "%prefix%&fEr zijn &#d9a441%orders% &fbestellingen geladen, waarvan &#d9a441%active% &factief zijn.";
             case "reloaded" -> "%prefix%&aBanditOrders-configuratie opnieuw geladen.";
             case "admin-usage" -> "%prefix%&7Gebruik &f/banditorders <reload|delete <id>|info|help>&7.";
             default -> "%prefix%&cMissing message: &f" + key;
