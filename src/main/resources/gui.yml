@@ -90,7 +90,7 @@ list:
         - "&7Ga naar pagina %page%."
 
 # Apart menu via Jouw opdrachten en /orders mine.
-# Its clicks use this menu's holder and configured slots, not names or lore.
+# Klikacties gebruiken de ingestelde slots, niet namen of beschrijvingen.
 my-orders:
   size: 54
   title: "&#55b7ff&lJOUW ORDERS"
@@ -101,7 +101,7 @@ my-orders:
     - "&7Prijs per stuk: &#d9a441%price%"
     - "&7Resterende waarde: &#d9a441%total_price%"
     - ""
-    - "&#55b7ff→ Klik om te openen storage"
+    - "&#55b7ff→ Klik om de opslag te openen"
     - "&#e3262e→ Shift-klik om te annuleren"
   admin-lore:
     - ""
@@ -140,7 +140,7 @@ my-orders:
       material: OAK_DOOR
       name: "&#d9a441&lTERUG NAAR OPDRACHTEN"
       lore:
-        - "&7Ga terug naar alle marktorders."
+        - "&7Ga terug naar alle markt-opdrachten."
         - ""
         - "&#d9a441→ Klik om terug te gaan"
     next:
