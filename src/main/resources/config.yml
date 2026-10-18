@@ -1,9 +1,9 @@
 # Primaire bestellingnaam/extra commandolabel. Voorbeeld: bestellingen.
-# /%command% blijft als compatibiliteitscommando beschikbaar.
+# /orders blijft als compatibiliteitscommando beschikbaar. Herstart de server na een wijziging.
 order-command: bestellingen
 
 # Standaardlimiet als een speler geen banditorders.amount.<aantal>-permissie heeft.
-# Bij meerdere aantalpermissies wordt het hoogste getal gebruikt.
+# Bij meerdere aantalpermissies wordt het hoogste getal gebruikt, bijvoorbeeld banditorders.amount.10.
 # Gebruik banditorders.amount.unlimited voor onbeperkt.
 max-orders-per-player: 5
 messages:
