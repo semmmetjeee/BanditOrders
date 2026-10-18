@@ -258,7 +258,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             message(sender, "order-not-found", Map.of("id", id));
             return false;
         }
-        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAantal).sum();
+        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAmount).sum();
         if (storedItems > 0) {
             message(sender, "admin-storage-not-empty", Map.of(
                     "id", order.id(),
@@ -394,7 +394,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
             message(player, "order-not-found", Map.of("id", id));
             return false;
         }
-        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAantal).sum();
+        int storedItems = stored.getOrDefault(order.id(), List.of()).stream().mapToInt(ItemStack::getAmount).sum();
         if (storedItems > 0 || collectionLocks.contains(order.id())) {
             message(player, "cancel-storage-not-empty", Map.of(
                     "id", order.id(),
@@ -936,7 +936,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         Order order = orders.get(orderId);
         if (order == null || order.remaining() > 0) return;
         boolean hasItems = stored.getOrDefault(orderId, List.of()).stream()
-                .anyMatch(stack -> stack != null && !stack.getType().isAir() && stack.getAantal() > 0);
+                .anyMatch(stack -> stack != null && !stack.getType().isAir() && stack.getAmount() > 0);
         if (hasItems) return;
 
         Map<String, String> variables = variables(order);
@@ -959,13 +959,13 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
         for (int slot : inputSlots) {
             ItemStack stack = inventory.getItem(slot);
             if (stack == null || stack.getType().isAir() || !stack.isSimilar(order.template()) || delivered >= order.remaining()) continue;
-            int taken = Math.min(stack.getAantal(), order.remaining() - delivered);
+            int taken = Math.min(stack.getAmount(), order.remaining() - delivered);
             ItemStack copy = stack.clone();
-            copy.setAantal(taken);
+            copy.setAmount(taken);
             deposited.add(copy);
             delivered += taken;
-            stack.setAantal(stack.getAantal() - taken);
-            if (stack.getAantal() <= 0) inventory.setItem(slot, null);
+            stack.setAmount(stack.getAmount() - taken);
+            if (stack.getAmount() <= 0) inventory.setItem(slot, null);
         }
 
         returnInputs(player, inventory, inputSlots);
@@ -1090,7 +1090,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
 
     private ItemStack item(ItemStack template, String name, List<String> lore, Integer customModelData, boolean glow) {
         ItemStack stack = template.clone();
-        stack.setAantal(1);
+        stack.setAmount(1);
         ItemMeta meta = stack.getItemMeta();
         meta.setDisplayName(color(name));
         meta.setLore(lore.stream().map(this::color).toList());
@@ -1279,7 +1279,7 @@ public final class BanditOrders extends JavaPlugin implements Listener, CommandE
     private record Order(String id, UUID buyer, ItemStack template, int total, int remaining, double price) {
         private Order {
             template = template.clone();
-            template.setAantal(1);
+            template.setAmount(1);
         }
 
         @Override public ItemStack template() { return template.clone(); }
